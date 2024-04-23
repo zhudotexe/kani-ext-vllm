@@ -3,27 +3,32 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "kani-ext-YOURNAMEHERE"
+name = "kani-ext-vllm"
 version = "0.0.1"  # Update with your own version number
 authors = [
-    { name = "YOUR NAME HERE", email = "YOUR EMAIL HERE" },
+    { name = "Andrew Zhu", email = "andrew@zhu.codes" },
 ]
-description = "YOUR DESCRIPTION HERE"
+description = "vLLM backend for kani"
 readme = "README.md"
-#license = { file = "LICENSE" }  # Uncomment me after adding a license
+license = { file = "LICENSE" }  # Uncomment me after adding a license
 requires-python = ">=3.10"
 classifiers = [
-    # Your classifiers here: https://pypi.org/classifiers/
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    # https://pypi.org/classifiers/
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "kani<2.0.0",
-    # Your dependencies here
+    "kani>=1.0.0rc1,<2.0.0",
+    "vllm>=0.3.3,<1.0.0",
 ]
 
 # Uncomment if you want to link to some URLs from the PyPI page
-#[project.urls]
-#"Homepage" = "https://github.com/..."
-#"Bug Tracker" = "https://github.com/.../issues"
+[project.urls]
+"Homepage" = "https://github.com/zhudotexe/kani-ext-vllm"
+"Bug Tracker" = "https://github.com/zhudotexe/kani-ext-vllm/issues"
 
 # This tells the build system that the kani directory contains a namespace package
 # Don't touch it unless you know what you're doing!
