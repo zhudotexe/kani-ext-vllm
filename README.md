@@ -39,3 +39,7 @@ engine = CommandRVLLMEngine(model_id="CohereForAI/c4ai-command-r-v01")
 ai = Kani(engine)
 chat_in_terminal(ai)
 ```
+
+For multi-GPU support (probably needed), add either `model_load_kwargs={"tensor_parallel_size": 4}` (faster, less
+compat) or `model_load_kwargs={"pipeline_parallel_size": 4}` (slower, more compatible). Replace "4" with the number of
+GPUs you have available.

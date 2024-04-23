@@ -32,7 +32,7 @@ class VLLMEngine(BaseEngine):
         if model_load_kwargs is None:
             model_load_kwargs = {}
 
-        engine_args = AsyncEngineArgs(model=model_id, **model_load_kwargs)
+        engine_args = AsyncEngineArgs(model=model_id, max_model_len=max_context_size, **model_load_kwargs)
         engine = AsyncLLMEngine.from_engine_args(engine_args)
 
         self.model = engine

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kani-ext-vllm"
-version = "0.0.1"  # Update with your own version number
+version = "0.0.1"
 authors = [
     { name = "Andrew Zhu", email = "andrew@zhu.codes" },
 ]
@@ -22,7 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "kani>=1.0.0rc1,<2.0.0",
-    "vllm>=0.3.3,<1.0.0",
+    "vllm>=0.4.1,<1.0.0",
 ]
 
 # Uncomment if you want to link to some URLs from the PyPI page
