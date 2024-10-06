@@ -3,7 +3,7 @@ import uuid
 import warnings
 
 import transformers
-from vllm import AsyncEngineArgs, AsyncLLMEngine, SamplingParams
+from vllm import AsyncEngineArgs, AsyncLLMEngine, SamplingParams, TokensPrompt
 
 from kani import AIFunction, ChatMessage, PromptPipeline
 from kani.engines import BaseEngine, Completion
@@ -148,6 +148,8 @@ class VLLMEngine(BaseEngine):
         :param hyperparams: Any additional parameters to pass to AsyncLLMEngine.generate(). (See
             https://github.com/vllm-project/vllm/blob/main/vllm/engine/async_llm_engine.py)
         """
+        if decode_kwargs is None:
+            decode_kwargs = dict(skip_special_tokens=True)
         prompt = self.build_prompt(messages, functions)
         kwargs = {
             "sampling_params": SamplingParams(max_tokens=None),
@@ -156,14 +158,20 @@ class VLLMEngine(BaseEngine):
             **hyperparams,
         }
 
+        # tokenize it ourselves in order to capture special tokens correctly
+        prompt_toks = self.tokenizer(prompt, add_special_tokens=False)
+        prompt_toks = TokensPrompt(prompt_token_ids=prompt_toks.input_ids)
+
         # run it through the model
         # generation from vllm api entrypoint
         final_output = None
-        async for request_output in self.model.generate(prompt, **kwargs):
+        async for request_output in self.model.generate(prompt_toks, **kwargs):
             final_output = request_output
 
         assert final_output is not None
-        content = final_output.outputs[0].text
+        # decode to tokens
+        # the completion shouldn't include the prompt or stop token
+        content = self.tokenizer.decode(final_output.outputs[0].token_ids, **decode_kwargs).strip()
         input_len = len(final_output.prompt_token_ids)
         output_len = len(final_output.outputs[0].token_ids)
         return Completion(
