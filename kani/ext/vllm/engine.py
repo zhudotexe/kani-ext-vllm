@@ -2,6 +2,7 @@ import logging
 import uuid
 import warnings
 
+import transformers
 from vllm import AsyncEngineArgs, AsyncLLMEngine, SamplingParams
 
 from kani import AIFunction, ChatMessage, PromptPipeline
@@ -43,7 +44,13 @@ class VLLMEngine(BaseEngine):
 
         # load the pipeline
         if prompt_pipeline is None:
-            prompt_pipeline = ChatTemplatePromptPipeline(self.tokenizer)
+            if isinstance(self.tokenizer, transformers.PreTrainedTokenizerBase):
+                prompt_pipeline = ChatTemplatePromptPipeline(self.tokenizer)
+            else:
+                raise ValueError(
+                    "There is no chat template associated with this model (tokenizer loaded from a non-HF source)."
+                    " Please provide a prompt_pipeline."
+                )
         self.pipeline = prompt_pipeline
 
         # token counting stuff
@@ -83,7 +90,7 @@ class VLLMEngine(BaseEngine):
             )
         prompt = self.pipeline.execute([message], for_measurement=True)
         # prompt str to tokens
-        tokenized = self.tokenizer.encode(prompt, add_special_tokens=False)
+        tokenized = self.tokenizer.encode(prompt)
         return len(tokenized)
 
     def function_token_reserve(self, functions: list[AIFunction]) -> int:
@@ -96,7 +103,7 @@ class VLLMEngine(BaseEngine):
             )
         prompt = self.pipeline.execute([], functions, for_measurement=True)
         # prompt str to tokens
-        tokenized = self.tokenizer.encode(prompt, add_special_tokens=False)
+        tokenized = self.tokenizer.encode(prompt)
         toklen = len(tokenized)
 
         # warn if there are functions but no tokens
