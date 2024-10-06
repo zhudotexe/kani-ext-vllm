@@ -135,6 +135,8 @@ class VLLMEngine(BaseEngine):
         self,
         messages: list[ChatMessage],
         functions: list[AIFunction] | None = None,
+        *,
+        decode_kwargs: dict = None,  # to prevent HF compat things from breaking the call to .generate()
         **hyperparams,
     ) -> Completion:
         """
