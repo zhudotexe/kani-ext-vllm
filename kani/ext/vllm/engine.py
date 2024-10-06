@@ -79,7 +79,7 @@ class VLLMEngine(BaseEngine):
         """If token_reserve is not set and we have a pipeline, infer it."""
         prompt = self.pipeline.execute([], for_measurement=True)
         # prompt str to tokens
-        tokenized = self.tokenizer.encode(prompt, add_special_tokens=False)
+        tokenized = self.tokenizer.encode(prompt)
         return len(tokenized)
 
     def message_len(self, message: ChatMessage) -> int:
