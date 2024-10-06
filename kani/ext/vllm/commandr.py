@@ -2,11 +2,11 @@ import logging
 import uuid
 from collections.abc import AsyncIterable
 
+from vllm import SamplingParams
+
 from kani import AIFunction, ChatMessage, ChatRole
 from kani.engines import Completion
 from kani.prompts.impl.cohere import CommandRMixin, function_prompt, tool_call_formatter
-from vllm import SamplingParams
-
 from .engine import VLLMEngine
 
 log = logging.getLogger(__name__)
@@ -77,6 +77,7 @@ class CommandRVLLMEngine(CommandRMixin, VLLMEngine):
             - another user-supplied string
         :param hyperparams: Additional arguments to supply the model during generation.
         """
+        kwargs.setdefault("max_context_size", 128000)
         super().__init__(model_id, *args, **kwargs)
 
     # ==== token counting ====
@@ -145,7 +146,10 @@ class CommandRVLLMEngine(CommandRMixin, VLLMEngine):
         yield Completion(ChatMessage.assistant(last_generation))
 
     async def predict(
-        self, messages: list[ChatMessage], functions: list[AIFunction] | None = None, **hyperparams
+        self,
+        messages: list[ChatMessage],
+        functions: list[AIFunction] | None = None,
+        **hyperparams,
     ) -> Completion:
         prompt = self.build_prompt(messages, functions)
         completion = await self._generate(prompt, parse_functions=functions is not None, **hyperparams)
@@ -163,7 +167,10 @@ class CommandRVLLMEngine(CommandRMixin, VLLMEngine):
         return completion
 
     async def stream(
-        self, messages: list[ChatMessage], functions: list[AIFunction] | None = None, **hyperparams
+        self,
+        messages: list[ChatMessage],
+        functions: list[AIFunction] | None = None,
+        **hyperparams,
     ) -> AsyncIterable[str | Completion]:
         # if we have functions things get weird
         # if we have tools and the last turn is not FUNCTION, no-stream the first round to get the Action

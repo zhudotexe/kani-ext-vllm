@@ -1,11 +1,12 @@
 import logging
 import uuid
 import warnings
-from collections.abc import AsyncIterable
+
+from vllm import AsyncEngineArgs, AsyncLLMEngine, SamplingParams
 
 from kani import AIFunction, ChatMessage, PromptPipeline
 from kani.engines import BaseEngine, Completion
-from vllm import AsyncEngineArgs, AsyncLLMEngine, SamplingParams
+from kani.engines.huggingface.chat_template_pipeline import ChatTemplatePromptPipeline
 
 log = logging.getLogger(__name__)
 
@@ -38,9 +39,12 @@ class VLLMEngine(BaseEngine):
         self.model = engine
         self.tokenizer = engine.engine.get_tokenizer()
         self.max_context_size = max_context_size
-        self.pipeline = prompt_pipeline
-
         self.hyperparams = hyperparams
+
+        # load the pipeline
+        if prompt_pipeline is None:
+            prompt_pipeline = ChatTemplatePromptPipeline(self.tokenizer)
+        self.pipeline = prompt_pipeline
 
         # token counting stuff
         # try and infer max context size from the model config if not specified
@@ -82,6 +86,29 @@ class VLLMEngine(BaseEngine):
         tokenized = self.tokenizer.encode(prompt, add_special_tokens=False)
         return len(tokenized)
 
+    def function_token_reserve(self, functions: list[AIFunction]) -> int:
+        if not functions:
+            return 0
+        # default concrete base behaviour:
+        if self.pipeline is None:
+            raise NotImplementedError(
+                "You must pass a prompt_pipeline to the VLLMEngine to use it as a non-abstract class."
+            )
+        prompt = self.pipeline.execute([], functions, for_measurement=True)
+        # prompt str to tokens
+        tokenized = self.tokenizer.encode(prompt, add_special_tokens=False)
+        toklen = len(tokenized)
+
+        # warn if there are functions but no tokens
+        if toklen == 0:
+            warnings.warn(
+                "Functions were given to the model, but the function prompt returned 0 tokens! This model may not"
+                " support function calling, or you may need to implement"
+                f" `{type(self).__name__}.function_token_reserve()`."
+            )
+
+        return toklen
+
     def build_prompt(self, messages: list[ChatMessage], functions: list[AIFunction] | None = None) -> str:
         """
         Given the list of messages from kani, build either a single string representing the prompt for the model,
@@ -93,12 +120,15 @@ class VLLMEngine(BaseEngine):
             raise NotImplementedError(
                 "You must pass a prompt_pipeline to the HuggingEngine to use it as a non-abstract class."
             )
-        prompt = self.pipeline(messages)
+        prompt = self.pipeline(messages, functions)
         log.debug(f"BUILT PROMPT: {prompt}")
         return prompt
 
     async def predict(
-        self, messages: list[ChatMessage], functions: list[AIFunction] | None = None, **hyperparams
+        self,
+        messages: list[ChatMessage],
+        functions: list[AIFunction] | None = None,
+        **hyperparams,
     ) -> Completion:
         """
         Given the current context of messages and available functions, get the next predicted chat message from the LM.
@@ -125,39 +155,10 @@ class VLLMEngine(BaseEngine):
 
         assert final_output is not None
         content = final_output.outputs[0].text
-        return Completion(ChatMessage.assistant(content))
-
-    async def stream(
-        self,
-        messages: list[ChatMessage],
-        functions: list[AIFunction] | None = None,
-        *,
-        streamer_timeout=None,
-        **hyperparams,
-    ) -> AsyncIterable[str | Completion]:
-        """
-        Given the current context of messages and available functions, get the next predicted chat message from the LM.
-
-        :param messages: The messages in the current chat context. ``sum(message_len(m) for m in messages)`` is
-            guaranteed to be less than max_context_size.
-        :param functions: The functions the LM is allowed to call.
-        :param streamer_timeout: The maximum number of seconds to wait for the next token when streaming.
-        :param hyperparams: Any additional parameters to pass to GenerationMixin.generate(). (See
-            https://huggingface.co/docs/transformers/main_classes/text_generation)
-        """
-        prompt = self.build_prompt(messages, functions)
-        kwargs = {
-            "sampling_params": SamplingParams(max_tokens=None),
-            "request_id": str(uuid.uuid4()),
-            **self.hyperparams,
-            **hyperparams,
-        }
-
-        # run it through the model
-        # generation from vllm api entrypoint
-        last_generation = ""
-        async for request_output in self.model.generate(prompt, **kwargs):
-            chunk = request_output.outputs[0].text
-            yield chunk.removeprefix(last_generation)
-            last_generation = chunk
-        yield Completion(ChatMessage.assistant(last_generation))
+        input_len = len(final_output.prompt_token_ids)
+        output_len = len(final_output.outputs[0].token_ids)
+        return Completion(
+            ChatMessage.assistant(content),
+            prompt_tokens=input_len,
+            completion_tokens=output_len,
+        )
