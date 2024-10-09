@@ -22,7 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "kani>=1.2.0,<2.0.0",
-    "vllm>=0.4.1,<1.0.0",
+    "vllm>=0.6.2,<1.0.0",
 ]
 
 # Uncomment if you want to link to some URLs from the PyPI page
