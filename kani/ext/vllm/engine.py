@@ -160,6 +160,7 @@ class VLLMEngine(BaseEngine):
 
         # tokenize it ourselves in order to capture special tokens correctly
         prompt_toks = self.tokenizer(prompt, add_special_tokens=False)
+        input_len = len(prompt_toks.input_ids)
         prompt_toks = TokensPrompt(prompt_token_ids=prompt_toks.input_ids)
 
         # run it through the model
@@ -172,8 +173,8 @@ class VLLMEngine(BaseEngine):
         # decode to tokens
         # the completion shouldn't include the prompt or stop token
         content = self.tokenizer.decode(final_output.outputs[0].token_ids, **decode_kwargs).strip()
-        input_len = len(final_output.prompt_token_ids)
         output_len = len(final_output.outputs[0].token_ids)
+        log.debug(f"COMPLETION ({input_len=}, {output_len=}): {content}")
         return Completion(
             ChatMessage.assistant(content),
             prompt_tokens=input_len,
