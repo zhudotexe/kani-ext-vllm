@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 import warnings
@@ -151,9 +152,10 @@ class VLLMEngine(BaseEngine):
         if decode_kwargs is None:
             decode_kwargs = dict(skip_special_tokens=True)
         prompt = self.build_prompt(messages, functions)
+        request_id = str(uuid.uuid4())
         kwargs = {
             "sampling_params": SamplingParams(max_tokens=None),
-            "request_id": str(uuid.uuid4()),
+            "request_id": request_id,
             **self.hyperparams,
             **hyperparams,
         }
@@ -166,8 +168,13 @@ class VLLMEngine(BaseEngine):
         # run it through the model
         # generation from vllm api entrypoint
         final_output = None
-        async for request_output in self.model.generate(prompt_toks, **kwargs):
-            final_output = request_output
+        try:
+            async for request_output in self.model.generate(prompt_toks, **kwargs):
+                final_output = request_output
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            # if something cancels our task, make sure we tell vLLM to stop generating too
+            await self.model.abort(request_id)
+            raise
 
         assert final_output is not None
         # decode to tokens
