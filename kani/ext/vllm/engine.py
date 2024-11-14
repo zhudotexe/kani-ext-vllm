@@ -3,12 +3,12 @@ import logging
 import uuid
 import warnings
 
+import torch
 import transformers
-from vllm import AsyncEngineArgs, AsyncLLMEngine, SamplingParams, TokensPrompt
-
 from kani import AIFunction, ChatMessage, PromptPipeline
 from kani.engines import BaseEngine, Completion
 from kani.engines.huggingface.chat_template_pipeline import ChatTemplatePromptPipeline
+from vllm import AsyncEngineArgs, AsyncLLMEngine, SamplingParams, TokensPrompt
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class VLLMEngine(BaseEngine):
         self,
         model_id: str,
         max_context_size: int = None,
-        prompt_pipeline: PromptPipeline[str] = None,
+        prompt_pipeline: PromptPipeline[str | torch.Tensor] = None,
         *,
         model_load_kwargs: dict = None,
         **hyperparams,
@@ -79,6 +79,8 @@ class VLLMEngine(BaseEngine):
     def _infer_token_reserve(self):
         """If token_reserve is not set and we have a pipeline, infer it."""
         prompt = self.pipeline.execute([], for_measurement=True)
+        if isinstance(prompt, torch.Tensor):
+            return len(prompt[0])
         # prompt str to tokens
         tokenized = self.tokenizer.encode(prompt)
         return len(tokenized)
@@ -90,6 +92,8 @@ class VLLMEngine(BaseEngine):
                 "You must pass a prompt_pipeline to the VLLMEngine to use it as a non-abstract class."
             )
         prompt = self.pipeline.execute([message], for_measurement=True)
+        if isinstance(prompt, torch.Tensor):
+            return len(prompt[0])
         # prompt str to tokens
         tokenized = self.tokenizer.encode(prompt)
         return len(tokenized)
@@ -103,9 +107,12 @@ class VLLMEngine(BaseEngine):
                 "You must pass a prompt_pipeline to the VLLMEngine to use it as a non-abstract class."
             )
         prompt = self.pipeline.execute([], functions, for_measurement=True)
-        # prompt str to tokens
-        tokenized = self.tokenizer.encode(prompt)
-        toklen = len(tokenized)
+        if isinstance(prompt, torch.Tensor):
+            toklen = len(prompt[0])
+        else:
+            # prompt str to tokens
+            tokenized = self.tokenizer.encode(prompt)
+            toklen = len(tokenized)
 
         # warn if there are functions but no tokens
         if toklen == 0:

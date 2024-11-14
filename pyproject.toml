@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kani-ext-vllm"
-version = "0.0.4"
+version = "0.0.5"
 authors = [
     { name = "Andrew Zhu", email = "andrew@zhu.codes" },
 ]
