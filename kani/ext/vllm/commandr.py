@@ -162,7 +162,7 @@ class CommandRVLLMEngine(CommandRMixin, VLLMEngine):
             log.debug("GOT DIRECTLY_ANSWER, REPROMPTING RAG...")
             prompt = self._build_prompt_rag(messages)
             log.debug(f"RAG PROMPT: {prompt}")
-            completion = self._generate(prompt, parse_functions=functions is not None, **hyperparams)
+            completion = await self._generate(prompt, parse_functions=functions is not None, **hyperparams)
         # otherwise don't touch it
         return completion
 
