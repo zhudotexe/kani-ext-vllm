@@ -2,11 +2,11 @@ import logging
 import uuid
 from collections.abc import AsyncIterable
 
-from vllm import SamplingParams
-
 from kani import AIFunction, ChatMessage, ChatRole
 from kani.engines import Completion
 from kani.prompts.impl.cohere import CommandRMixin, function_prompt, tool_call_formatter
+from vllm import SamplingParams
+
 from .engine import VLLMEngine
 
 log = logging.getLogger(__name__)
@@ -117,6 +117,9 @@ class CommandRVLLMEngine(CommandRMixin, VLLMEngine):
             **hyperparams,
         }
 
+        prompt_toks = self.tokenizer(prompt, add_special_tokens=False)
+        input_len = len(prompt_toks.input_ids)
+
         # run it through the model
         # generation from vllm api entrypoint
         final_output = None
@@ -125,7 +128,8 @@ class CommandRVLLMEngine(CommandRMixin, VLLMEngine):
 
         assert final_output is not None
         content = final_output.outputs[0].text
-        return self._parse_completion(content, parse_functions)
+        output_len = len(final_output.outputs[0].token_ids)
+        return self._parse_completion(content, parse_functions, prompt_tokens=input_len, completion_tokens=output_len)
 
     async def _stream(self, prompt, **hyperparams) -> AsyncIterable[str | Completion]:
         """Low-level stream yielder (kind of weird duplicated code but it's ok)"""
@@ -136,14 +140,20 @@ class CommandRVLLMEngine(CommandRMixin, VLLMEngine):
             **hyperparams,
         }
 
+        prompt_toks = self.tokenizer(prompt, add_special_tokens=False)
+        input_len = len(prompt_toks.input_ids)
+
         # run it through the model
         # generation from vllm api entrypoint
         last_generation = ""
+        last_output = None
         async for request_output in self.model.generate(prompt, **kwargs):
             chunk = request_output.outputs[0].text
             yield chunk.removeprefix(last_generation)
             last_generation = chunk
-        yield Completion(ChatMessage.assistant(last_generation))
+            last_output = request_output
+        output_len = len(last_output.outputs[0].token_ids)
+        yield Completion(ChatMessage.assistant(last_generation), prompt_tokens=input_len, completion_tokens=output_len)
 
     async def predict(
         self,
@@ -162,7 +172,11 @@ class CommandRVLLMEngine(CommandRMixin, VLLMEngine):
             log.debug("GOT DIRECTLY_ANSWER, REPROMPTING RAG...")
             prompt = self._build_prompt_rag(messages)
             log.debug(f"RAG PROMPT: {prompt}")
+            pre_prompt_tokens = completion.prompt_tokens
+            pre_completion_tokens = completion.completion_tokens
             completion = await self._generate(prompt, parse_functions=functions is not None, **hyperparams)
+            completion._prompt_tokens += pre_prompt_tokens
+            completion._completion_tokens += pre_completion_tokens
         # otherwise don't touch it
         return completion
 
@@ -181,11 +195,21 @@ class CommandRVLLMEngine(CommandRMixin, VLLMEngine):
 
             # if tool says directly answer, stream with the rag pipeline (but no result)
             if cmd_r_tc_info.is_directly_answer:
+                pre_prompt_tokens = completion.prompt_tokens
+                pre_completion_tokens = completion.completion_tokens
                 log.debug("GOT DIRECTLY_ANSWER, REPROMPTING RAG...")
                 prompt = self._build_prompt_rag(messages)
                 log.debug(f"RAG PROMPT: {prompt}")
                 async for elem in self._stream(prompt, **hyperparams):
-                    yield elem
+                    if isinstance(elem, Completion):
+                        # ensure we count the tokens from the first step too
+                        yield Completion(
+                            elem.message,
+                            prompt_tokens=pre_prompt_tokens + elem.prompt_tokens,
+                            completion_tokens=pre_completion_tokens + elem.completion_tokens,
+                        )
+                    else:
+                        yield elem
             # if the model generated multiple calls that happen to include a directly_answer, remove the directly_answer
             # then yield as normal
             else:
