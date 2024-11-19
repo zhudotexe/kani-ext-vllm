@@ -92,6 +92,8 @@ class VLLMServerEngine(BaseEngine):
             else:
                 healthy = resp.status_code == 200
 
+    _dummy_msg = ChatMessage.user("dummy")
+
     def _tokenize_messages(self, messages: list[ChatMessage]):
         oai_messages = translate_messages(messages) if messages else []
         resp = self.http.post(
@@ -115,7 +117,11 @@ class VLLMServerEngine(BaseEngine):
     # ===== main =====
     def _infer_token_reserve(self):
         """If token_reserve is not set and we have a pipeline, infer it."""
-        return self._tokenize_messages([])["count"]
+        try:
+            return self._tokenize_messages([])["count"]
+        except httpx.HTTPError:
+            # if the tokenizer doesn't allow no-messages, overestimate with a short dummy
+            return self._tokenize_messages([self._dummy_msg])["count"]
 
     def message_len(self, message: ChatMessage) -> int:
         return self._tokenize_messages([message])["count"]
