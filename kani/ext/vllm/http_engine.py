@@ -2,6 +2,7 @@ import json
 import logging
 import socket
 import subprocess
+import time
 from typing import AsyncIterable
 
 import httpx
@@ -70,9 +71,26 @@ class VLLMServerEngine(BaseEngine):
         self.client = AsyncOpenAI(base_url=f"http://127.0.0.1:{port}/v1")
         self.http = httpx.Client(base_url=f"http://127.0.0.1:{port}")  # todo tokenization should be async
 
+        self._wait_for_healthy_server()
+
         # infer the token reserve from tokenization
         if self.token_reserve == 0:
             self.token_reserve = self._infer_token_reserve()
+
+    # ===== server shenanigans =====
+    def _wait_for_healthy_server(self):
+        healthy = False
+        while not healthy:
+            try:
+                log.debug("Checking for healthy server...")
+                resp = self.http.get("/health")
+                resp.raise_for_status()
+            except httpx.HTTPError as e:
+                log.debug("Unhealthy server, waiting for 5 seconds...", exc_info=e)
+                time.sleep(5)
+                continue
+            else:
+                healthy = resp.status_code == 200
 
     def _tokenize_messages(self, messages: list[ChatMessage]):
         oai_messages = translate_messages(messages) if messages else []
@@ -94,6 +112,7 @@ class VLLMServerEngine(BaseEngine):
         data = resp.json()
         return data
 
+    # ===== main =====
     def _infer_token_reserve(self):
         """If token_reserve is not set and we have a pipeline, infer it."""
         return self._tokenize_messages([])["count"]
