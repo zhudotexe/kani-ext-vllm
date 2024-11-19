@@ -206,7 +206,7 @@ def _kwargs_to_cli(args: dict) -> list[str]:
         k = f"--{k.replace('-', '_')}"
         out.append(k)
         if v is not True:
-            out.append(v)
+            out.append(str(v))
 
     return out
 
