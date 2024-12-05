@@ -6,8 +6,11 @@ import time
 from typing import AsyncIterable
 
 import httpx
+import jinja2
+import torch
 from kani.ai_function import AIFunction
 from kani.engines import BaseEngine, Completion
+from kani.engines.huggingface.chat_template_pipeline import ChatTemplatePromptPipeline
 from kani.engines.openai.translation import (
     ChatCompletion,
     openai_tc_to_kani_tc,
@@ -69,9 +72,13 @@ class VLLMServerEngine(BaseEngine):
         log.info(f"Launching vLLM server with following command: {_vargs}")
         self.server = subprocess.Popen(_vargs)
         self.client = AsyncOpenAI(base_url=f"http://127.0.0.1:{port}/v1")
-        self.http = httpx.Client(base_url=f"http://127.0.0.1:{port}")  # todo tokenization should be async
 
         self._wait_for_healthy_server()
+
+        # load the pipeline
+        self.http = httpx.Client(base_url=f"http://127.0.0.1:{port}")  # todo tokenization should be async
+        self.tokenizer = HTTPTokenizerCompat(self.model_id, self.http)
+        self.pipeline = ChatTemplatePromptPipeline(self.tokenizer)
 
         # infer the token reserve from tokenization
         if self.token_reserve == 0:
@@ -92,39 +99,19 @@ class VLLMServerEngine(BaseEngine):
             else:
                 healthy = resp.status_code == 200
 
-    _dummy_msg = ChatMessage.user("dummy")
-
-    def _tokenize_messages(self, messages: list[ChatMessage]):
-        oai_messages = translate_messages(messages) if messages else []
-        resp = self.http.post(
-            "/tokenize",
-            json={
-                "model": self.model_id,
-                "messages": oai_messages,
-                "add_special_tokens": True,
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return data
-
-    def _tokenize_prompt(self, prompt: str):
-        resp = self.http.post("/tokenize", json={"model": self.model_id, "prompt": prompt})
-        resp.raise_for_status()
-        data = resp.json()
-        return data
-
     # ===== main =====
     def _infer_token_reserve(self):
         """If token_reserve is not set and we have a pipeline, infer it."""
-        try:
-            return self._tokenize_messages([])["count"]
-        except httpx.HTTPError:
-            # if the tokenizer doesn't allow no-messages, overestimate with a short dummy
-            return self._tokenize_messages([self._dummy_msg])["count"]
+        prompt = self.pipeline.execute([], for_measurement=True)
+        if isinstance(prompt, torch.Tensor):
+            return len(prompt[0])
+        return self.tokenizer.len(prompt)
 
     def message_len(self, message: ChatMessage) -> int:
-        return self._tokenize_messages([message])["count"]
+        prompt = self.pipeline.execute([message], for_measurement=True)
+        if isinstance(prompt, torch.Tensor):
+            return len(prompt[0])
+        return self.tokenizer.len(prompt)
 
     def function_token_reserve(self, functions: list[AIFunction]) -> int:
         if not functions:
@@ -134,8 +121,7 @@ class VLLMServerEngine(BaseEngine):
         # of the json schema since that is usually an overestimate
         tool_specs = translate_functions(functions)
         json_schema = json.dumps(tool_specs)
-
-        return self._tokenize_prompt(json_schema)["count"]
+        return self.tokenizer.len(json_schema)
 
     async def predict(
         self, messages: list[ChatMessage], functions: list[AIFunction] | None = None, **hyperparams
@@ -223,6 +209,53 @@ class VLLMServerEngine(BaseEngine):
         self.server.terminate()
 
 
+class HTTPTokenizerCompat:
+    """Duck-typed tokenizer to provide ChatTemplatePromptPipeline compatibility."""
+
+    def __init__(self, model_id, http):
+        self.model_id = model_id
+        self.http = http
+
+    # http
+    def _request_tokenize_str(self, q):
+        resp = self.http.post("/tokenize", json={"model": self.model_id, "prompt": q})
+        resp.raise_for_status()
+        data = resp.json()
+        return data
+
+    def _request_tokenize_msg(self, messages, add_special_tokens=True, add_generation_prompt=True, **_):
+        resp = self.http.post(
+            "/tokenize",
+            json={
+                "model": self.model_id,
+                "messages": messages,
+                "add_special_tokens": add_special_tokens,
+                "add_generation_prompt": add_generation_prompt,
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # compat
+    def encode(self, prompt: str) -> list[int]:
+        data = self._request_tokenize_str(prompt)
+        return data["tokens"]
+
+    def len(self, prompt: str) -> int:
+        data = self._request_tokenize_str(prompt)
+        return data["count"]
+
+    def apply_chat_template(self, messages: list[ChatMessage], **kwargs) -> list[int]:
+        oai_messages = translate_messages(messages) if messages else []
+        try:
+            data = self._request_tokenize_msg(oai_messages, **kwargs)
+        except httpx.HTTPError as e:
+            # hack to make ChatTemplatePromptPipeline fallback
+            raise jinja2.TemplateError("This is a hacky reraise; see above error.") from e
+        return data["tokens"]
+
+
+# ==== utils ====
 def _kwargs_to_cli(args: dict) -> list[str]:
     out = []
     for k, v in args.items():
