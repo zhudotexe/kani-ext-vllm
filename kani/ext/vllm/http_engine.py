@@ -304,7 +304,11 @@ class HTTPTokenizerCompat:
                 "add_special_tokens": add_special_tokens,
             },
         )
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPError as e:
+            # hack to make ChatTemplatePromptPipeline fallback
+            raise jinja2.TemplateError("This is a hacky reraise; see above error.") from e
         data = resp.json()
         return data
 
@@ -318,7 +322,11 @@ class HTTPTokenizerCompat:
                 "add_generation_prompt": add_generation_prompt,
             },
         )
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPError as e:
+            # hack to make ChatTemplatePromptPipeline fallback
+            raise jinja2.TemplateError("This is a hacky reraise; see above error.") from e
         return resp.json()
 
     # compat
@@ -331,11 +339,7 @@ class HTTPTokenizerCompat:
         return data["count"]
 
     def apply_chat_template(self, messages: list[dict], **kwargs) -> list[int]:
-        try:
-            data = self._request_tokenize_msg(messages, **kwargs)
-        except httpx.HTTPError as e:
-            # hack to make ChatTemplatePromptPipeline fallback
-            raise jinja2.TemplateError("This is a hacky reraise; see above error.") from e
+        data = self._request_tokenize_msg(messages, **kwargs)
         return data["tokens"]
 
 
