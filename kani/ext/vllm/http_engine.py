@@ -295,8 +295,15 @@ class HTTPTokenizerCompat:
         self.http = http
 
     # http
-    def _request_tokenize_str(self, q):
-        resp = self.http.post("/tokenize", json={"model": self.model_id, "prompt": q})
+    def _request_tokenize_str(self, q, add_special_tokens=True, **_):
+        resp = self.http.post(
+            "/tokenize",
+            json={
+                "model": self.model_id,
+                "prompt": q,
+                "add_special_tokens": add_special_tokens,
+            },
+        )
         resp.raise_for_status()
         data = resp.json()
         return data
@@ -315,12 +322,12 @@ class HTTPTokenizerCompat:
         return resp.json()
 
     # compat
-    def encode(self, prompt: str) -> list[int]:
-        data = self._request_tokenize_str(prompt)
+    def encode(self, prompt: str, **kwargs) -> list[int]:
+        data = self._request_tokenize_str(prompt, **kwargs)
         return data["tokens"]
 
-    def len(self, prompt: str) -> int:
-        data = self._request_tokenize_str(prompt)
+    def len(self, prompt: str, **kwargs) -> int:
+        data = self._request_tokenize_str(prompt, **kwargs)
         return data["count"]
 
     def apply_chat_template(self, messages: list[dict], **kwargs) -> list[int]:
