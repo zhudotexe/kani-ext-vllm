@@ -323,10 +323,9 @@ class HTTPTokenizerCompat:
         data = self._request_tokenize_str(prompt)
         return data["count"]
 
-    def apply_chat_template(self, messages: list[ChatMessage], **kwargs) -> list[int]:
-        oai_messages = translate_messages(messages) if messages else []
+    def apply_chat_template(self, messages: list[dict], **kwargs) -> list[int]:
         try:
-            data = self._request_tokenize_msg(oai_messages, **kwargs)
+            data = self._request_tokenize_msg(messages, **kwargs)
         except httpx.HTTPError as e:
             # hack to make ChatTemplatePromptPipeline fallback
             raise jinja2.TemplateError("This is a hacky reraise; see above error.") from e
