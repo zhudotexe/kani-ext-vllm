@@ -7,9 +7,8 @@ from typing import AsyncIterable
 
 import httpx
 import jinja2
-import torch
 from kani.ai_function import AIFunction
-from kani.engines import BaseEngine, Completion
+from kani.engines import Completion
 from kani.engines.huggingface.chat_template_pipeline import ChatTemplatePromptPipeline
 from kani.engines.openai.translation import (
     ChatCompletion,
@@ -19,13 +18,16 @@ from kani.engines.openai.translation import (
 )
 from kani.models import ChatMessage, ChatRole
 from openai import AsyncOpenAI
+from transformers import AutoTokenizer
+
+from .bases import VLLMBase
 
 log = logging.getLogger(__name__)
 
 
-class VLLMServerEngine(BaseEngine):
+class VLLMServerChatEngine(VLLMBase):
     """
-    Like the VLLMEngine, but uses an HTTP server and the OpenAI client.
+    Like the VLLMEngine, but uses an HTTP server and the OpenAI client with the server handling chat translation.
     Useful for serving multiple models in parallel or models which have defined special vLLM support.
     """
 
@@ -54,7 +56,6 @@ class VLLMServerEngine(BaseEngine):
             vllm_args = {}
 
         self.model_id = model_id
-        self.max_context_size = max_context_size
         self.hyperparams = hyperparams
 
         # launch the server
@@ -74,15 +75,12 @@ class VLLMServerEngine(BaseEngine):
         self.client = AsyncOpenAI(base_url=f"http://127.0.0.1:{port}/v1")
         self.http = httpx.Client(base_url=f"http://127.0.0.1:{port}")  # todo tokenization should be async
 
-        self._wait_for_healthy_server()
+        _wait_for_healthy_server(self.http)
 
         # load the pipeline
-        self.tokenizer = HTTPTokenizerCompat(self.model_id, self.http)
-        self.pipeline = ChatTemplatePromptPipeline(self.tokenizer)
-
-        # infer the token reserve from tokenization
-        if self.token_reserve == 0:
-            self.token_reserve = self._infer_token_reserve()
+        tokenizer = HTTPTokenizerCompat(self.model_id, self.http)
+        prompt_pipeline = ChatTemplatePromptPipeline(self.tokenizer)
+        super().__init__(tokenizer=tokenizer, max_context_size=max_context_size, prompt_pipeline=prompt_pipeline)
 
     # ===== server shenanigans =====
     def _wait_for_healthy_server(self):
@@ -100,19 +98,6 @@ class VLLMServerEngine(BaseEngine):
                 healthy = resp.status_code == 200
 
     # ===== main =====
-    def _infer_token_reserve(self):
-        """If token_reserve is not set and we have a pipeline, infer it."""
-        prompt = self.pipeline.execute([], for_measurement=True)
-        if isinstance(prompt, torch.Tensor):
-            return len(prompt[0])
-        return self.tokenizer.len(prompt)
-
-    def message_len(self, message: ChatMessage) -> int:
-        prompt = self.pipeline.execute([message], for_measurement=True)
-        if isinstance(prompt, torch.Tensor):
-            return len(prompt[0])
-        return self.tokenizer.len(prompt)
-
     def function_token_reserve(self, functions: list[AIFunction]) -> int:
         if not functions:
             return 0
@@ -209,6 +194,99 @@ class VLLMServerEngine(BaseEngine):
         self.server.terminate()
 
 
+class VLLMServerCompletionEngine(VLLMBase):
+    """
+    Like the VLLMEngine, but uses an HTTP server and the OpenAI client with the client handling chat
+    translation/tokenization.
+
+    Will only work for models with HF tokenizers.
+
+    Useful for serving multiple models in parallel or models which have defined special vLLM support.
+    """
+
+    def __init__(
+        self,
+        model_id: str,
+        max_context_size: int,
+        vllm_args: dict = None,
+        **hyperparams,
+    ):
+        r"""
+        :param model_id: The ID of the model to load from HuggingFace.
+        :param max_context_size: The context size of the model.
+        :param vllm_args: See
+            https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#command-line-arguments-for-the-server.
+            Underscores will be converted to hyphens, dashes will be added, and values of True will be present.
+            (e.g. ``{"enable_auto_tool_choice": True, "tool_call_parser": "mistral"}`` becomes
+            ``--enable-auto-tool-choice --tool-call-parser mistral``\ .)
+
+            .. note::
+                the host will always be localhost, and the port will always be randomly chosen
+        :param hyperparams: Additional arguments to supply the model during generation, see
+            https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-completions-api.
+        """
+        if vllm_args is None:
+            vllm_args = {}
+
+        self.model_id = model_id
+        self.hyperparams = hyperparams
+
+        # launch the server
+        port = str(_get_free_port())
+        _vargs = [
+            "vllm",
+            "serve",
+            model_id,
+            "--host",
+            "127.0.0.1",
+            "--port",
+            port,
+            *_kwargs_to_cli(vllm_args),
+        ]
+        log.info(f"Launching vLLM server with following command: {_vargs}")
+        self.server = subprocess.Popen(_vargs)
+        self.client = AsyncOpenAI(base_url=f"http://127.0.0.1:{port}/v1")
+        self.http = httpx.Client(base_url=f"http://127.0.0.1:{port}")  # todo tokenization should be async
+
+        _wait_for_healthy_server(self.http)
+
+        # load the pipeline
+        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        prompt_pipeline = ChatTemplatePromptPipeline(self.tokenizer)
+        super().__init__(tokenizer=tokenizer, max_context_size=max_context_size, prompt_pipeline=prompt_pipeline)
+
+    # ===== main =====
+    async def predict(
+        self, messages: list[ChatMessage], functions: list[AIFunction] | None = None, **hyperparams
+    ) -> Completion:
+        prompt = self.build_prompt(messages, functions)
+        kwargs = {
+            "max_tokens": None,
+            **self.hyperparams,
+            **hyperparams,
+        }
+
+        # tokenize it ourselves in order to capture special tokens correctly
+        prompt_toks = self.tokenizer(prompt, add_special_tokens=False)
+
+        # run it through the model
+        # generation from vllm api entrypoint
+        completion = await self.client.completions.create(model=self.model_id, prompt=prompt_toks, **kwargs)
+        content = completion.choices[0].text
+
+        input_len = completion.usage.prompt_tokens
+        output_len = completion.usage.completion_tokens
+        log.debug(f"COMPLETION ({input_len=}, {output_len=}): {content}")
+        return Completion(
+            ChatMessage.assistant(content),
+            prompt_tokens=input_len,
+            completion_tokens=output_len,
+        )
+
+    async def close(self):
+        self.server.terminate()
+
+
 class HTTPTokenizerCompat:
     """Duck-typed tokenizer to provide ChatTemplatePromptPipeline compatibility."""
 
@@ -256,6 +334,21 @@ class HTTPTokenizerCompat:
 
 
 # ==== utils ====
+def _wait_for_healthy_server(http: httpx.Client):
+    healthy = False
+    while not healthy:
+        try:
+            log.debug("Checking for healthy server...")
+            resp = http.get("/health")
+            resp.raise_for_status()
+        except httpx.HTTPError as e:
+            log.debug("Unhealthy server, waiting for 5 seconds...", exc_info=e)
+            time.sleep(5)
+            continue
+        else:
+            healthy = resp.status_code == 200
+
+
 def _kwargs_to_cli(args: dict) -> list[str]:
     out = []
     for k, v in args.items():
