@@ -79,7 +79,7 @@ class VLLMServerChatEngine(VLLMBase):
 
         # load the pipeline
         tokenizer = HTTPTokenizerCompat(self.model_id, self.http)
-        prompt_pipeline = ChatTemplatePromptPipeline(self.tokenizer)
+        prompt_pipeline = ChatTemplatePromptPipeline(tokenizer)
         super().__init__(tokenizer=tokenizer, max_context_size=max_context_size, prompt_pipeline=prompt_pipeline)
 
     # ===== server shenanigans =====
@@ -252,7 +252,7 @@ class VLLMServerCompletionEngine(VLLMBase):
 
         # load the pipeline
         tokenizer = AutoTokenizer.from_pretrained(model_id)
-        prompt_pipeline = ChatTemplatePromptPipeline(self.tokenizer)
+        prompt_pipeline = ChatTemplatePromptPipeline(tokenizer)
         super().__init__(tokenizer=tokenizer, max_context_size=max_context_size, prompt_pipeline=prompt_pipeline)
 
     # ===== main =====
