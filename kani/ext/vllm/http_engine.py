@@ -72,11 +72,11 @@ class VLLMServerEngine(BaseEngine):
         log.info(f"Launching vLLM server with following command: {_vargs}")
         self.server = subprocess.Popen(_vargs)
         self.client = AsyncOpenAI(base_url=f"http://127.0.0.1:{port}/v1")
+        self.http = httpx.Client(base_url=f"http://127.0.0.1:{port}")  # todo tokenization should be async
 
         self._wait_for_healthy_server()
 
         # load the pipeline
-        self.http = httpx.Client(base_url=f"http://127.0.0.1:{port}")  # todo tokenization should be async
         self.tokenizer = HTTPTokenizerCompat(self.model_id, self.http)
         self.pipeline = ChatTemplatePromptPipeline(self.tokenizer)
 
