@@ -295,33 +295,27 @@ class HTTPTokenizerCompat:
         self.http = http
 
     # http
-    def _request_tokenize_str(self, q, add_special_tokens=True, **_):
-        resp = self.http.post(
-            "/tokenize",
-            json={
-                "model": self.model_id,
-                "prompt": q,
-                "add_special_tokens": add_special_tokens,
-            },
-        )
-        try:
-            resp.raise_for_status()
-        except httpx.HTTPError as e:
-            # hack to make ChatTemplatePromptPipeline fallback
-            raise jinja2.TemplateError("This is a hacky reraise; see above error.") from e
+    def _request_tokenize_str(self, q: str, add_special_tokens=True, **_):
+        payload = {
+            "model": self.model_id,
+            "prompt": q,
+            "add_special_tokens": add_special_tokens,
+        }
+        log.debug(f"Tokenize str: {payload!r}")
+        resp = self.http.post("/tokenize", json=payload)
+        resp.raise_for_status()
         data = resp.json()
         return data
 
     def _request_tokenize_msg(self, messages, add_special_tokens=True, add_generation_prompt=True, **_):
-        resp = self.http.post(
-            "/tokenize",
-            json={
-                "model": self.model_id,
-                "messages": messages,
-                "add_special_tokens": add_special_tokens,
-                "add_generation_prompt": add_generation_prompt,
-            },
-        )
+        payload = {
+            "model": self.model_id,
+            "messages": messages,
+            "add_special_tokens": add_special_tokens,
+            "add_generation_prompt": add_generation_prompt,
+        }
+        log.debug(f"Tokenize msg: {payload!r}")
+        resp = self.http.post("/tokenize", json=payload)
         try:
             resp.raise_for_status()
         except httpx.HTTPError as e:
