@@ -10,7 +10,9 @@ log = logging.getLogger(__name__)
 
 
 class VLLMBase(BaseEngine, abc.ABC):
-    def __init__(self, tokenizer, max_context_size: int, prompt_pipeline: PromptPipeline[str | torch.Tensor]):
+    def __init__(
+        self, tokenizer, max_context_size: int, prompt_pipeline: PromptPipeline[str | list[int] | torch.Tensor]
+    ):
         self.tokenizer = tokenizer
         self.max_context_size = max_context_size
         self.pipeline = prompt_pipeline
@@ -22,6 +24,8 @@ class VLLMBase(BaseEngine, abc.ABC):
     def _infer_token_reserve(self):
         """If token_reserve is not set and we have a pipeline, infer it."""
         prompt = self.pipeline.execute([], for_measurement=True)
+        if isinstance(prompt, list):
+            return len(prompt)
         if isinstance(prompt, torch.Tensor):
             return len(prompt[0])
         # prompt str to tokens
@@ -35,6 +39,8 @@ class VLLMBase(BaseEngine, abc.ABC):
                 "You must pass a prompt_pipeline to the VLLMEngine to use it as a non-abstract class."
             )
         prompt = self.pipeline.execute([message], for_measurement=True)
+        if isinstance(prompt, list):
+            return len(prompt)
         if isinstance(prompt, torch.Tensor):
             return len(prompt[0])
         # prompt str to tokens
@@ -50,7 +56,9 @@ class VLLMBase(BaseEngine, abc.ABC):
                 "You must pass a prompt_pipeline to the VLLMEngine to use it as a non-abstract class."
             )
         prompt = self.pipeline.execute([], functions, for_measurement=True)
-        if isinstance(prompt, torch.Tensor):
+        if isinstance(prompt, list):
+            toklen = len(prompt)
+        elif isinstance(prompt, torch.Tensor):
             toklen = len(prompt[0])
         else:
             # prompt str to tokens
@@ -69,7 +77,7 @@ class VLLMBase(BaseEngine, abc.ABC):
 
     def build_prompt(
         self, messages: list[ChatMessage], functions: list[AIFunction] | None = None
-    ) -> str | torch.Tensor:
+    ) -> str | list[int] | torch.Tensor:
         """
         Given the list of messages from kani, build either a single string representing the prompt for the model,
         or build the token tensor.

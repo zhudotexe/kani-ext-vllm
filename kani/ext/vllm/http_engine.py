@@ -7,6 +7,7 @@ from typing import AsyncIterable
 
 import httpx
 import jinja2
+import torch
 from kani.ai_function import AIFunction
 from kani.engines import Completion
 from kani.engines.huggingface.chat_template_pipeline import ChatTemplatePromptPipeline
@@ -267,7 +268,12 @@ class VLLMServerCompletionEngine(VLLMBase):
         }
 
         # tokenize it ourselves in order to capture special tokens correctly
-        prompt_toks = self.tokenizer(prompt, add_special_tokens=False)
+        if isinstance(prompt, list):
+            prompt_toks = prompt
+        elif isinstance(prompt, torch.Tensor):
+            prompt_toks = prompt[0].tolist()
+        else:
+            prompt_toks = self.tokenizer.encode(prompt, add_special_tokens=False)
 
         # run it through the model
         # generation from vllm api entrypoint
