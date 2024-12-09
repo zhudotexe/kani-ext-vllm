@@ -53,7 +53,6 @@ class VLLMEngine(VLLMBase):
                     "There is no chat template associated with this model (tokenizer loaded from a non-HF source)."
                     " Please provide a prompt_pipeline."
                 )
-        self.pipeline = prompt_pipeline
 
         super().__init__(tokenizer=tokenizer, max_context_size=max_context_size, prompt_pipeline=prompt_pipeline)
 
