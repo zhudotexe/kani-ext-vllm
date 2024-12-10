@@ -100,6 +100,9 @@ class VLLMServerEngine(VLLMBase):
         decode_kwargs: dict = None,  # to prevent HF compat things from breaking the call to .generate()
         **hyperparams,
     ) -> Completion:
+        if decode_kwargs is None:
+            decode_kwargs = {}
+
         prompt = self.build_prompt(messages, functions)
         kwargs = {
             "max_tokens": None,
@@ -117,7 +120,9 @@ class VLLMServerEngine(VLLMBase):
 
         # run it through the model
         # generation from vllm api entrypoint
-        completion = await self.client.completions.create(model=self.model_id, prompt=prompt_toks, **kwargs)
+        completion = await self.client.completions.create(
+            model=self.model_id, prompt=prompt_toks, extra_body=decode_kwargs, **kwargs
+        )
         content = completion.choices[0].text
 
         input_len = completion.usage.prompt_tokens
