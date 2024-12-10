@@ -93,7 +93,12 @@ class VLLMServerEngine(VLLMBase):
 
     # ===== main =====
     async def predict(
-        self, messages: list[ChatMessage], functions: list[AIFunction] | None = None, **hyperparams
+        self,
+        messages: list[ChatMessage],
+        functions: list[AIFunction] | None = None,
+        *,
+        decode_kwargs: dict = None,  # to prevent HF compat things from breaking the call to .generate()
+        **hyperparams,
     ) -> Completion:
         prompt = self.build_prompt(messages, functions)
         kwargs = {
