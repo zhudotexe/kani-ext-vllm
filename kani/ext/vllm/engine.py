@@ -129,3 +129,7 @@ class VLLMEngine(VLLMBase):
             prompt_tokens=input_len,
             completion_tokens=output_len,
         )
+
+    async def close(self):
+        self.model.shutdown_background_loop()
+        self.model = None

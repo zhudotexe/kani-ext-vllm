@@ -1,0 +1,10 @@
+-e .
+
+# dev
+black
+build
+isort
+hatch
+pytest
+pytest-asyncio
+twine
