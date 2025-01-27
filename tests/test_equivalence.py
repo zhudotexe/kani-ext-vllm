@@ -31,6 +31,7 @@ async def api():
         model_id=MODEL_ID,
         max_context_size=8192,
         vllm_args={"seed": 31415},
+        timeout=3000,
         temperature=0,
         max_tokens=2048,
     )

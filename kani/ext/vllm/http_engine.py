@@ -36,6 +36,7 @@ class VLLMServerEngine(VLLMBase):
         max_context_size: int,
         prompt_pipeline: PromptPipeline[str | torch.Tensor] = None,
         *,
+        timeout: int = 600,
         vllm_args: dict = None,
         **hyperparams,
     ):
@@ -74,7 +75,9 @@ class VLLMServerEngine(VLLMBase):
         log.info(f"Launching vLLM server with following command: {_vargs}")
         self.server = subprocess.Popen(_vargs)
         self.client = AsyncOpenAI(
-            base_url=f"http://127.0.0.1:{port}/v1", api_key="<the library wants this but it isn't needed>"
+            base_url=f"http://127.0.0.1:{port}/v1",
+            api_key="<the library wants this but it isn't needed>",
+            timeout=timeout,
         )
         self.http = httpx.Client(base_url=f"http://127.0.0.1:{port}")  # todo tokenization should be async
 
