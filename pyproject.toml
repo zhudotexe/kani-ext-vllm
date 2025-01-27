@@ -47,3 +47,6 @@ known_third_party = ["kani"]
 no_lines_before = "LOCALFOLDER"
 reverse_relative = true
 combine_as_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

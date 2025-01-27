@@ -34,7 +34,7 @@ jobs:
 
       - name: Download HF models
         run: |
-          huggingface-cli download meta-llama/Llama-3.2-1B-Instruct
+          huggingface-cli download meta-llama/Llama-3.2-1B-Instruct --exclude "original/*"
 
       - name: Test with pytest
         run: pytest
