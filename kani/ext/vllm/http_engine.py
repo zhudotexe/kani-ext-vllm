@@ -84,8 +84,8 @@ class VLLMServerEngine(VLLMBase):
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         # load the pipeline
         if prompt_pipeline is None:
-            if isinstance(self.tokenizer, transformers.PreTrainedTokenizerBase):
-                prompt_pipeline = ChatTemplatePromptPipeline(self.tokenizer)
+            if isinstance(tokenizer, transformers.PreTrainedTokenizerBase):
+                prompt_pipeline = ChatTemplatePromptPipeline(tokenizer)
             else:
                 raise ValueError(
                     "There is no chat template associated with this model (tokenizer loaded from a non-HF source)."
