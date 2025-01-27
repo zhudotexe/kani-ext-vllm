@@ -4,6 +4,7 @@ on: [ push, pull_request ]
 
 env:
   HF_TOKEN: ${{ secrets.HF_TOKEN }}
+  GH_TOKEN: ${{ github.token }}
 
 jobs:
   build:
@@ -65,5 +66,5 @@ jobs:
           huggingface-cli download meta-llama/Llama-3.2-1B-Instruct --exclude "original/*"
 
       - name: Test with pytest
-        run: pytest
+        run: pytest --ignore=_vllm
 
