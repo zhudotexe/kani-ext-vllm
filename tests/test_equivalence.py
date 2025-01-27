@@ -44,5 +44,7 @@ async def api():
 
 async def test_equivalence():
     resp1 = await offline()
+    print(f"OFFLINE: {resp1}")
     resp2 = await api()
+    print(f"API: {resp2}")
     assert resp1 == resp2

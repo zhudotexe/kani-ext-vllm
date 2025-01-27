@@ -73,7 +73,9 @@ class VLLMServerEngine(VLLMBase):
         ]
         log.info(f"Launching vLLM server with following command: {_vargs}")
         self.server = subprocess.Popen(_vargs)
-        self.client = AsyncOpenAI(base_url=f"http://127.0.0.1:{port}/v1")
+        self.client = AsyncOpenAI(
+            base_url=f"http://127.0.0.1:{port}/v1", api_key="<the library wants this but it isn't needed>"
+        )
         self.http = httpx.Client(base_url=f"http://127.0.0.1:{port}")  # todo tokenization should be async
 
         _wait_for_healthy_server(self.http)
