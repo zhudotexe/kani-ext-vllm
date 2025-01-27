@@ -14,7 +14,7 @@ MODEL_ID = "meta-llama/Llama-3.2-1B-Instruct"
 async def offline():
     model = VLLMEngine(
         model_id=MODEL_ID,
-        max_context_len=8192,
+        max_context_size=8192,
         model_load_kwargs={"seed": 31415},
         sampling_params=SamplingParams(temperature=0, max_tokens=2048),
     )
@@ -29,7 +29,7 @@ async def offline():
 async def api():
     model = VLLMServerEngine(
         model_id=MODEL_ID,
-        max_context_len=8192,
+        max_context_size=8192,
         vllm_args={"seed": 31415},
         temperature=0,
         max_tokens=2048,
