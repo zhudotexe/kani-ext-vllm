@@ -128,7 +128,7 @@ class VLLMServerEngine(VLLMBase):
         completion = await self.client.completions.create(
             model=self.model_id, prompt=prompt_toks, extra_body=decode_kwargs, **kwargs
         )
-        content = completion.choices[0].text
+        content = completion.choices[0].text.strip()
 
         input_len = completion.usage.prompt_tokens
         output_len = completion.usage.completion_tokens
