@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kani-ext-vllm"
-version = "0.0.6.dev1"
+version = "0.0.7"
 authors = [
     { name = "Andrew Zhu", email = "andrew@zhu.codes" },
 ]
 description = "vLLM backend for kani"
 readme = "README.md"
-license = { file = "LICENSE" }  # Uncomment me after adding a license
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
