@@ -2,10 +2,15 @@
 
 This repository adds the VLLMEngine.
 
-This package is considered provisional and maintained on a best-effort basis. As such, it will not be released on
-PyPI.
+This package is considered provisional and maintained on a best-effort basis.
 
-To install this package, you must install it using the git source:
+To install this package, you can install it from PyPI:
+
+```shell
+$ pip install kani-ext-vllm
+```
+
+Alternatively, you can install it using the git source:
 
 ```shell
 $ pip install git+https://github.com/zhudotexe/kani-ext-vllm.git@main
