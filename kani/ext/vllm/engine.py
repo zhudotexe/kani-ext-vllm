@@ -43,7 +43,7 @@ class VLLMEngine(VLLMBase):
         engine_args = AsyncEngineArgs(model=model_id, max_model_len=max_context_size, **model_load_kwargs)
         engine = AsyncLLMEngine.from_engine_args(engine_args)
 
-        tokenizer = engine.engine.get_tokenizer()
+        tokenizer = engine.tokenizer.get_lora_tokenizer()
         self.model = engine
         self.hyperparams = hyperparams
 
@@ -65,7 +65,7 @@ class VLLMEngine(VLLMBase):
         # token counting stuff
         # try and infer max context size from the model config if not specified
         if self.max_context_size is None:
-            self.max_context_size = engine.engine.get_model_config().max_model_len
+            self.max_context_size = engine.model_config.max_model_len
 
         log.debug(f"Inferred max context size: {self.max_context_size}")
 
