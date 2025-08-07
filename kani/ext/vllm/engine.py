@@ -5,9 +5,8 @@ import warnings
 
 import torch
 import transformers
-from kani import AIFunction, ChatMessage, PromptPipeline
+from kani import AIFunction, ChatMessage, PromptPipeline, model_specific
 from kani.engines import Completion
-from kani.engines.huggingface.chat_template_pipeline import ChatTemplatePromptPipeline
 from vllm import AsyncEngineArgs, AsyncLLMEngine, SamplingParams, TokensPrompt
 
 from .bases import VLLMBase
@@ -23,6 +22,7 @@ class VLLMEngine(VLLMBase):
         prompt_pipeline: PromptPipeline[str | torch.Tensor] = None,
         *,
         model_load_kwargs: dict = None,
+        chat_template_kwargs: dict = None,
         **hyperparams,
     ):
         """
@@ -31,11 +31,14 @@ class VLLMEngine(VLLMBase):
         :param prompt_pipeline: The pipeline to translate a list of kani ChatMessages into the model-specific chat
             format (see :class:`.PromptPipeline`).
         :param model_load_kwargs: Additional arguments to pass to ``AsyncEngineArgs()``.
+        :param chat_template_kwargs: The keyword arguments to pass to ``tokenizer.apply_chat_template`` if using a chat
+            template prompt pipeline.
         :param hyperparams: Additional arguments to supply the model during generation.
         """
-
         if model_load_kwargs is None:
             model_load_kwargs = {}
+        if chat_template_kwargs is None:
+            chat_template_kwargs = {}
 
         engine_args = AsyncEngineArgs(model=model_id, max_model_len=max_context_size, **model_load_kwargs)
         engine = AsyncLLMEngine.from_engine_args(engine_args)
@@ -47,7 +50,10 @@ class VLLMEngine(VLLMBase):
         # load the pipeline
         if prompt_pipeline is None:
             if isinstance(tokenizer, transformers.PreTrainedTokenizerBase):
-                prompt_pipeline = ChatTemplatePromptPipeline(tokenizer)
+                # try and load a manual impl, or default to chat template if not available
+                prompt_pipeline = model_specific.prompt_pipeline_for_hf_model(
+                    model_id, self.tokenizer, chat_template_kwargs=chat_template_kwargs
+                )
             else:
                 raise ValueError(
                     "There is no chat template associated with this model (tokenizer loaded from a non-HF source)."
