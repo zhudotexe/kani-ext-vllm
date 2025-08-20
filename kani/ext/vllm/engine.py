@@ -52,7 +52,7 @@ class VLLMEngine(VLLMBase):
             if isinstance(tokenizer, transformers.PreTrainedTokenizerBase):
                 # try and load a manual impl, or default to chat template if not available
                 prompt_pipeline = model_specific.prompt_pipeline_for_hf_model(
-                    model_id, self.tokenizer, chat_template_kwargs=chat_template_kwargs
+                    model_id, tokenizer, chat_template_kwargs=chat_template_kwargs
                 )
             else:
                 raise ValueError(
