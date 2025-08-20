@@ -7,7 +7,8 @@ import torch
 import transformers
 from kani import AIFunction, ChatMessage, PromptPipeline, model_specific
 from kani.engines import Completion
-from vllm import AsyncEngineArgs, AsyncLLMEngine, SamplingParams, TokensPrompt
+from vllm import AsyncEngineArgs, SamplingParams, TokensPrompt
+from vllm.v1.engine.async_llm import AsyncLLM
 
 from .bases import VLLMBase
 
@@ -41,7 +42,7 @@ class VLLMEngine(VLLMBase):
             chat_template_kwargs = {}
 
         engine_args = AsyncEngineArgs(model=model_id, max_model_len=max_context_size, **model_load_kwargs)
-        engine = AsyncLLMEngine.from_engine_args(engine_args)
+        engine = AsyncLLM.from_engine_args(engine_args)
 
         tokenizer = engine.tokenizer.get_lora_tokenizer()
         self.model = engine
@@ -137,5 +138,5 @@ class VLLMEngine(VLLMBase):
         )
 
     async def close(self):
-        self.model.shutdown_background_loop()
+        self.model.shutdown()
         self.model = None
