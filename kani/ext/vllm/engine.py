@@ -81,6 +81,23 @@ class VLLMEngine(VLLMBase):
                 " my code in 2050). Please pass the `max_context_size` arg to use the correct model size."
             )
 
+    async def _get_eos_tokens(self, *, return_ids=False, sampling_params: SamplingParams) -> list[str] | list[int]:
+        """Get the list of tokens that should end a generation."""
+        if sampling_params.stop_token_ids:
+            genconfig_eos_token_id = sampling_params.stop_token_ids
+        else:
+            model_config = await self.model.get_model_config()
+            gen_config = model_config.try_get_generation_config()
+            genconfig_eos_token_id = gen_config.get("eos_token_id")
+
+        if isinstance(genconfig_eos_token_id, list):
+            eos_token_ids = genconfig_eos_token_id
+        else:
+            eos_token_ids = [genconfig_eos_token_id]
+        if return_ids:
+            return eos_token_ids
+        return [self.tokenizer.decode(t) for t in eos_token_ids]
+
     async def predict(
         self,
         messages: list[ChatMessage],
@@ -108,6 +125,7 @@ class VLLMEngine(VLLMBase):
             **self.hyperparams,
             **hyperparams,
         }
+        eos_tok_ids = await self._get_eos_tokens(return_ids=True, sampling_params=kwargs["sampling_params"])
 
         # tokenize it ourselves in order to capture special tokens correctly
         prompt_toks = self.tokenizer(prompt, add_special_tokens=False)
@@ -128,7 +146,11 @@ class VLLMEngine(VLLMBase):
         assert final_output is not None
         # decode to tokens
         token_ids = final_output.outputs[0].token_ids
-        content = self.tokenizer.decode(token_ids, **decode_kwargs).strip()
+        # ensure stop token is not included in output
+        if token_ids[-1] in eos_tok_ids:
+            content = self.tokenizer.decode(token_ids[:-1], **decode_kwargs).strip()
+        else:
+            content = self.tokenizer.decode(token_ids, **decode_kwargs).strip()
         output_len = len(final_output.outputs[0].token_ids)
         log.debug(f"COMPLETION ({input_len=}, {output_len=}): {content}")
         return Completion(
