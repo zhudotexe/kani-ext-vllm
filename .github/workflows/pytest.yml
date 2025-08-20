@@ -66,5 +66,5 @@ jobs:
           huggingface-cli download meta-llama/Llama-3.2-1B-Instruct --exclude "original/*"
 
       - name: Test with pytest
-        run: pytest --ignore=_vllm
+        run: pytest --ignore=_vllm -rA
 
