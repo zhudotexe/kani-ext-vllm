@@ -99,7 +99,7 @@ class VLLMEngine(VLLMBase):
             https://github.com/vllm-project/vllm/blob/main/vllm/engine/async_llm_engine.py)
         """
         if decode_kwargs is None:
-            decode_kwargs = dict(skip_special_tokens=True)
+            decode_kwargs = {}
         prompt = self.build_prompt(messages, functions)
         request_id = str(uuid.uuid4())
         kwargs = {
@@ -127,8 +127,8 @@ class VLLMEngine(VLLMBase):
 
         assert final_output is not None
         # decode to tokens
-        # the completion shouldn't include the prompt or stop token
-        content = self.tokenizer.decode(final_output.outputs[0].token_ids, **decode_kwargs).strip()
+        token_ids = final_output.outputs[0].token_ids
+        content = self.tokenizer.decode(token_ids, **decode_kwargs).strip()
         output_len = len(final_output.outputs[0].token_ids)
         log.debug(f"COMPLETION ({input_len=}, {output_len=}): {content}")
         return Completion(
