@@ -5,11 +5,9 @@ import time
 
 import httpx
 import torch
-import transformers
-from kani import PromptPipeline
+from kani import PromptPipeline, model_specific
 from kani.ai_function import AIFunction
 from kani.engines import Completion
-from kani.engines.huggingface.chat_template_pipeline import ChatTemplatePromptPipeline
 from kani.models import ChatMessage
 from openai import AsyncOpenAI
 from transformers import AutoTokenizer
@@ -38,6 +36,7 @@ class VLLMServerEngine(VLLMBase):
         *,
         timeout: int = 600,
         vllm_args: dict = None,
+        chat_template_kwargs: dict = None,
         **hyperparams,
     ):
         r"""
@@ -51,11 +50,15 @@ class VLLMServerEngine(VLLMBase):
 
             .. note::
                 the host will always be localhost, and the port will always be randomly chosen
+        :param chat_template_kwargs: The keyword arguments to pass to ``tokenizer.apply_chat_template`` if using a chat
+            template prompt pipeline.
         :param hyperparams: Additional arguments to supply the model during generation, see
             https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-completions-api.
         """
         if vllm_args is None:
             vllm_args = {}
+        if chat_template_kwargs is None:
+            chat_template_kwargs = {}
 
         self.model_id = model_id
         self.hyperparams = hyperparams
@@ -85,15 +88,11 @@ class VLLMServerEngine(VLLMBase):
 
         # load the pipeline
         tokenizer = AutoTokenizer.from_pretrained(model_id)
-        # load the pipeline
         if prompt_pipeline is None:
-            if isinstance(tokenizer, transformers.PreTrainedTokenizerBase):
-                prompt_pipeline = ChatTemplatePromptPipeline(tokenizer)
-            else:
-                raise ValueError(
-                    "There is no chat template associated with this model (tokenizer loaded from a non-HF source)."
-                    " Please provide a prompt_pipeline."
-                )
+            # try and load a manual impl, or default to chat template if not available
+            prompt_pipeline = model_specific.prompt_pipeline_for_hf_model(
+                model_id, tokenizer, chat_template_kwargs=chat_template_kwargs
+            )
         super().__init__(tokenizer=tokenizer, max_context_size=max_context_size, prompt_pipeline=prompt_pipeline)
 
     # ===== main =====
@@ -107,6 +106,7 @@ class VLLMServerEngine(VLLMBase):
     ) -> Completion:
         if decode_kwargs is None:
             decode_kwargs = {}
+        decode_kwargs.setdefault("skip_special_tokens", False)
 
         prompt = self.build_prompt(messages, functions)
         kwargs = {

@@ -4,7 +4,7 @@ import logging
 from typing import Annotated
 
 from kani import AIParam, Kani, ai_function
-from kani.ext.vllm import VLLMEngine
+from kani.ext.vllm import VLLMEngine, VLLMServerEngine
 from kani.model_specific.gpt_oss import GPTOSSParser
 from vllm import SamplingParams
 
@@ -33,6 +33,15 @@ def get_engines():
         max_context_size=128000,
         model_load_kwargs={"tensor_parallel_size": 8},
         sampling_params=SamplingParams(temperature=0.6, top_p=1, max_tokens=None),
+    )
+    yield GPTOSSParser(model)
+
+    model = VLLMServerEngine(
+        model_id="openai/gpt-oss-120b",
+        max_context_size=128000,
+        vllm_args={"tensor_parallel_size": 8},
+        temperature=0.6,
+        top_p=1,
     )
     yield GPTOSSParser(model)
 
