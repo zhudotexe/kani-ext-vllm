@@ -38,7 +38,7 @@ chat_in_terminal(ai)
 
 ### API Mode
 
-> [!ATTENTION]
+> [!NOTE]
 > Using offline mode is preferred unless you need to load multiple models in parallel.
 
 > [!NOTE]
@@ -53,24 +53,6 @@ from kani import Kani, chat_in_terminal
 from kani.ext.vllm import VLLMServerEngine
 
 engine = VLLMServerEngine(model_id="meta-llama/Meta-Llama-3-8B-Instruct", max_context_len=128000)
-ai = Kani(engine)
-chat_in_terminal(ai)
-```
-
-### Command R
-
-> [!NOTE]
-> Command R only supports loading in offline mode.
-
-Command R's HF
-impl [does not support the full 128k ctx length](https://huggingface.co/CohereForAI/c4ai-command-r-v01/discussions/12).
-Cohere [recommends using vLLM](https://huggingface.co/CohereForAI/c4ai-command-r-v01/discussions/32), so here we are.
-
-```python
-from kani import Kani, chat_in_terminal
-from kani.ext.vllm import CommandRVLLMEngine
-
-engine = CommandRVLLMEngine(model_id="CohereForAI/c4ai-command-r-v01")
 ai = Kani(engine)
 chat_in_terminal(ai)
 ```
