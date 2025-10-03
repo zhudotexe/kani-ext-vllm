@@ -1,0 +1,80 @@
+import asyncio
+import logging
+import socket
+import subprocess
+
+import httpx
+
+log = logging.getLogger(__name__)
+
+
+class VLLMServer:
+    """Class to manage a vLLM server instance."""
+
+    def __init__(self, model_id: str, vllm_args: dict = None):
+        if vllm_args is None:
+            vllm_args = {}
+        # launch the server
+        port = str(get_free_port())
+        self.port = port
+        _vargs = [
+            "vllm",
+            "serve",
+            model_id,
+            "--host",
+            "127.0.0.1",
+            "--port",
+            port,
+            *kwargs_to_cli(vllm_args),
+        ]
+        log.info(f"Launching vLLM server with following command: {_vargs}")
+        self.process = subprocess.Popen(_vargs)
+        self.http = httpx.AsyncClient(base_url=f"http://127.0.0.1:{port}")
+        self._server_healthy = False
+
+    async def wait_for_healthy(self, route="/health"):
+        """Wait until a GET request to the given route returns a 2XX response code."""
+        # we can early return if the server has been healthy once, hopefully
+        while not self._server_healthy:
+            try:
+                log.debug("Checking for healthy server...")
+                resp = await self.http.get(route)
+                resp.raise_for_status()
+            except httpx.HTTPError as e:
+                log.debug("Unhealthy server, waiting for 5 seconds...", exc_info=e)
+                await asyncio.sleep(5)
+                continue
+            else:
+                self._server_healthy = 200 <= resp.status_code < 300
+
+    def close(self):
+        self.process.terminate()
+
+
+# ==== utils ====
+def kwargs_to_cli(args: dict) -> list[str]:
+    """
+    Convert vLLM engine-style kwargs to CLI-style kwargs.
+
+    Example: {"tensor_parallel_size": 3} -> ["--tensor-parallel-size", "3"]
+    """
+    out = []
+    for k, v in args.items():
+        if v is False:
+            continue
+        k = f"--{k.replace('-', '_')}"
+        out.append(k)
+        if v is not True:
+            out.append(str(v))
+
+    return out
+
+
+def get_free_port() -> int:
+    """Return a random free port on the host."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    port = s.getsockname()[1]
+    s.close()
+    return port

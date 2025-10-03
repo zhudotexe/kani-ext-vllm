@@ -1,0 +1,68 @@
+import logging
+
+from kani.engines.openai import OpenAIEngine
+from openai import AsyncOpenAI
+
+from .vllm_server import VLLMServer
+
+log = logging.getLogger(__name__)
+
+
+class VLLMOpenAIEngine(OpenAIEngine):
+    """
+    Like the VLLMEngine, but uses an HTTP server and the OpenAI client with the vLLM server handling chat
+    translation/tokenization.
+
+    Useful for fast iteration for models with tool parsers already implemented by vLLM and/or multimodal models.
+    """
+
+    def __init__(
+        self,
+        model_id: str,
+        max_context_size: int,
+        *,
+        timeout: int = 600,
+        vllm_args: dict = None,
+        **hyperparams,
+    ):
+        r"""
+        :param model_id: The ID of the model to load from HuggingFace.
+        :param max_context_size: The context size of the model.
+        :param vllm_args: See https://docs.vllm.ai/en/stable/cli/serve.html.
+            Underscores will be converted to hyphens, dashes will be added, and values of True will be present.
+            (e.g. ``{"enable_auto_tool_choice": True, "tool_call_parser": "mistral"}`` becomes
+            ``--enable-auto-tool-choice --tool-call-parser mistral``\ .)
+
+            .. note::
+                the host will always be localhost, and the port will always be randomly chosen
+        :param hyperparams: Additional arguments to supply the model during generation, see
+            https://docs.vllm.ai/en/stable/serving/openai_compatible_server.html#chat-api_1.
+        """
+        # launch the server, create a client pointing to it, then pass to the OpenAIEngine
+        self.server = VLLMServer(model_id=model_id, vllm_args=vllm_args)
+
+        openai_client = AsyncOpenAI(
+            base_url=f"http://127.0.0.1:{self.server.port}/v1",
+            api_key="<the library wants this but it isn't needed>",
+            timeout=timeout,
+        )
+        super().__init__(model=model_id, max_context_size=max_context_size, client=openai_client, **hyperparams)
+
+    # OpenAIEngine patches
+    def _load_tokenizer(self):
+        return None
+
+    # ===== main =====
+    async def prompt_len(self, messages, functions=None, **kwargs) -> int:
+        # make an HTTP request to the vLLM server to figure it out
+        local_kwargs, translated_messages, tool_specs = self._prepare_request(
+            messages, functions, intent="vllm.tokenize"
+        )
+        payload = {"model": self.model, "messages": translated_messages, "tools": tool_specs, **(local_kwargs | kwargs)}
+        resp = await self.server.http.post("/tokenize", json=payload)
+        resp.raise_for_status()
+        data = await resp.json()
+        return data["count"]
+
+    async def close(self):
+        self.server.close()
