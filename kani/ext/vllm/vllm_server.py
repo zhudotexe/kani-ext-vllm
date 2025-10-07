@@ -11,18 +11,27 @@ log = logging.getLogger(__name__)
 class VLLMServer:
     """Class to manage a vLLM server instance."""
 
-    def __init__(self, model_id: str, vllm_args: dict = None):
+    def __init__(self, model_id: str, vllm_args: dict = None, *, host: str = "127.0.0.1", port: int = None):
+        """
+        Launch a vLLM server instance serving the given model ID with the given CLI arguments.
+
+        Optionally, the host and port can be overridden, but defaults to localhost and a random free port.
+        """
         if vllm_args is None:
             vllm_args = {}
         # launch the server
-        port = str(get_free_port())
+        if port is None:
+            port = str(get_free_port())
+        else:
+            port = str(port)
         self.port = port
+        self.host = host
         _vargs = [
             "vllm",
             "serve",
             model_id,
             "--host",
-            "127.0.0.1",
+            host,
             "--port",
             port,
             *kwargs_to_cli(vllm_args),
