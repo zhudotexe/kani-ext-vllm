@@ -80,11 +80,14 @@ async def infer_with_engine(engine, prompt):
 
 
 # pairwise equivalence tests
-@pytest.mark.parametrize(["e1", "e2"], itertools.pairwise([offline_engine, api_engine, openai_engine]))
-async def test_equivalence(e1, e2):
+@pytest.mark.parametrize(["e1_name", "e2_name"], itertools.pairwise(["offline_engine", "api_engine", "openai_engine"]))
+async def test_equivalence(request, e1_name, e2_name):
     prompt = random.choice(PROMPTS)
+    e1 = request.getfixturevalue(e1_name)
+    e2 = request.getfixturevalue(e2_name)
+
     resp1 = await infer_with_engine(e1, prompt)
-    print(f"{e1.__name__}: {resp1}")
+    print(f"{e1_name}: {resp1}")
     resp2 = await infer_with_engine(e2, prompt)
-    print(f"{e2.__name__}: {resp2}")
+    print(f"{e2_name}: {resp2}")
     assert resp1 == resp2
