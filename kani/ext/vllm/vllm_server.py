@@ -44,13 +44,20 @@ class VLLMServer:
     async def wait_for_healthy(self, route="/health"):
         """Wait until a GET request to the given route returns a 2XX response code."""
         # we can early return if the server has been healthy once, hopefully
+        if self._server_healthy:
+            return
+        log.info("Waiting until vLLM server is healthy...")
+        i = 0
         while not self._server_healthy:
+            i += 1
             try:
-                log.debug("Checking for healthy server...")
+                log.debug(f"Checking for healthy server (request {i})...")
                 resp = await self.http.get(route)
                 resp.raise_for_status()
             except httpx.HTTPError as e:
-                log.debug("Unhealthy server, waiting for 5 seconds...", exc_info=e)
+                log.debug(f"Unhealthy server (request {i}), waiting for 5 seconds...", exc_info=e)
+                if i % 10 == 0 and i > 1:
+                    log.warning(f"vLLM server is still unhealthy after {i} health checks!")
                 await asyncio.sleep(5)
                 continue
             else:

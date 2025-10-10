@@ -1,5 +1,10 @@
 import logging
+from typing import AsyncIterable
 
+from kani.engines.base import BaseCompletion
+from kani.engines.openai.translation import ChatCompletion
+
+from kani import AIFunction, ChatMessage
 from kani.engines.openai import OpenAIEngine
 from openai import AsyncOpenAI
 
@@ -55,6 +60,7 @@ class VLLMOpenAIEngine(OpenAIEngine):
 
     # ===== main =====
     async def prompt_len(self, messages, functions=None, **kwargs) -> int:
+        await self.server.wait_for_healthy()
         # make an HTTP request to the vLLM server to figure it out
         local_kwargs, translated_messages, tool_specs = self._prepare_request(
             messages, functions, intent="vllm.tokenize"
@@ -64,6 +70,19 @@ class VLLMOpenAIEngine(OpenAIEngine):
         resp.raise_for_status()
         data = await resp.json()
         return data["count"]
+
+    async def predict(
+        self, messages: list[ChatMessage], functions: list[AIFunction] | None = None, **hyperparams
+    ) -> ChatCompletion:
+        await self.server.wait_for_healthy()
+        return await super().predict(messages, functions, **hyperparams)
+
+    async def stream(
+        self, messages: list[ChatMessage], functions: list[AIFunction] | None = None, **hyperparams
+    ) -> AsyncIterable[str | BaseCompletion]:
+        await self.server.wait_for_healthy()
+        async for elem in super().stream(messages, functions, **hyperparams):
+            yield elem
 
     async def close(self):
         self.server.close()
