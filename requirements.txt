@@ -7,4 +7,5 @@ isort
 hatch
 pytest
 pytest-asyncio
+pytest-lazy-fixtures
 twine

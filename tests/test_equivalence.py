@@ -8,6 +8,7 @@ import itertools
 import random
 
 import pytest
+from pytest_lazy_fixtures import lf
 from vllm import SamplingParams
 
 from kani import Kani
@@ -32,7 +33,7 @@ async def offline_engine():
     model = VLLMEngine(
         model_id=MODEL_ID,
         max_context_size=8192,
-        model_load_kwargs={"seed": SEED},
+        model_load_kwargs={"seed": SEED, "gpu_memory_utilization": 0.3},
         sampling_params=SamplingParams(temperature=0, max_tokens=2048),
     )
     yield model
@@ -45,7 +46,7 @@ async def api_engine():
     model = VLLMServerEngine(
         model_id=MODEL_ID,
         max_context_size=8192,
-        vllm_args={"seed": SEED},
+        vllm_args={"seed": SEED, "gpu_memory_utilization": 0.3},
         vllm_port=31415,
         timeout=3000,
         temperature=0,
@@ -61,7 +62,7 @@ async def openai_engine():
     model = VLLMOpenAIEngine(
         model_id=MODEL_ID,
         max_context_size=8192,
-        vllm_args={"seed": SEED},
+        vllm_args={"seed": SEED, "gpu_memory_utilization": 0.3},
         vllm_port=31416,
         timeout=3000,
         temperature=0,
@@ -80,14 +81,14 @@ async def infer_with_engine(engine, prompt):
 
 
 # pairwise equivalence tests
-@pytest.mark.parametrize(["e1_name", "e2_name"], itertools.pairwise(["offline_engine", "api_engine", "openai_engine"]))
-async def test_equivalence(request, e1_name, e2_name):
+@pytest.mark.parametrize(
+    ["e1", "e2"],
+    itertools.pairwise([lf("offline_engine"), lf("api_engine"), lf("openai_engine")]),
+)
+async def test_equivalence(e1, e2):
     prompt = random.choice(PROMPTS)
-    e1 = request.getfixturevalue(e1_name)
-    e2 = request.getfixturevalue(e2_name)
-
     resp1 = await infer_with_engine(e1, prompt)
-    print(f"{e1_name}: {resp1}")
+    print(f"{e1.__name__}: {resp1}")
     resp2 = await infer_with_engine(e2, prompt)
-    print(f"{e2_name}: {resp2}")
+    print(f"{e2.__name__}: {resp2}")
     assert resp1 == resp2
