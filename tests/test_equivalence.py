@@ -9,75 +9,8 @@ import random
 
 import pytest
 from pytest_lazy_fixtures import lf
-from vllm import SamplingParams
 
-from kani import Kani
-from kani.ext.vllm import VLLMEngine, VLLMOpenAIEngine, VLLMServerEngine
-
-MODEL_ID = "meta-llama/Llama-3.2-1B-Instruct"
-# random prompts
-PROMPTS = [
-    "Tell me about the Boeing 737.",
-    "Without using the Shinkansen, how do I get from Oku-Tama to Komagome?",
-    "Help me come up with a new magic item for D&D called the Blade of Kani.",
-    "How do I set up vLLM?",
-    "Please output as many of the letter 'a' as possible.",
-    "How many 'a's are in the word 'strawberry'?",
-]
-SEED = random.randint(0, 99999)
-
-
-# define engines to test with
-@pytest.fixture(scope="module")
-async def offline_engine():
-    model = VLLMEngine(
-        model_id=MODEL_ID,
-        max_context_size=8192,
-        model_load_kwargs={"seed": SEED, "gpu_memory_utilization": 0.3},
-        sampling_params=SamplingParams(temperature=0, max_tokens=2048),
-    )
-    yield model
-    await model.close()
-    del model
-
-
-@pytest.fixture(scope="module")
-async def api_engine():
-    model = VLLMServerEngine(
-        model_id=MODEL_ID,
-        max_context_size=8192,
-        vllm_args={"seed": SEED, "gpu_memory_utilization": 0.3},
-        vllm_port=31415,
-        timeout=3000,
-        temperature=0,
-        max_tokens=2048,
-    )
-    yield model
-    await model.close()
-    del model
-
-
-@pytest.fixture(scope="module")
-async def openai_engine():
-    model = VLLMOpenAIEngine(
-        model_id=MODEL_ID,
-        max_context_size=8192,
-        vllm_args={"seed": SEED, "gpu_memory_utilization": 0.3},
-        vllm_port=31416,
-        timeout=3000,
-        temperature=0,
-        max_tokens=2048,
-    )
-    yield model
-    await model.close()
-    del model
-
-
-# define helpers to call the engines with
-async def infer_with_engine(engine, prompt):
-    ai = Kani(engine)
-    resp = await ai.chat_round_str(prompt)
-    return resp
+from tests.conftest import PROMPTS, infer_with_engine
 
 
 # pairwise equivalence tests
@@ -91,4 +24,14 @@ async def test_equivalence(e1, e2):
     print(f"{e1.__name__}: {resp1}")
     resp2 = await infer_with_engine(e2, prompt)
     print(f"{e2.__name__}: {resp2}")
+    assert resp1 == resp2
+
+
+@pytest.mark.parametrize("engine", [lf("offline_engine"), lf("api_engine"), lf("openai_engine")])
+async def test_equivalence_stream(engine):
+    prompt = random.choice(PROMPTS)
+    resp1 = await infer_with_engine(engine, prompt, stream=False)
+    print(f"{engine.__name__} (no stream): {resp1}")
+    resp2 = await infer_with_engine(engine, prompt, stream=True)
+    print(f"{engine.__name__} (streaming): {resp2}")
     assert resp1 == resp2

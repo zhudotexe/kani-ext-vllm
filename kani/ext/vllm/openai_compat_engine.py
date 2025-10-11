@@ -68,7 +68,7 @@ class VLLMOpenAIEngine(OpenAIEngine):
         payload = {"model": self.model, "messages": translated_messages, "tools": tool_specs, **(local_kwargs | kwargs)}
         resp = await self.server.http.post("/tokenize", json=payload)
         resp.raise_for_status()
-        data = await resp.json()
+        data = resp.json()
         return data["count"]
 
     async def predict(
@@ -85,4 +85,4 @@ class VLLMOpenAIEngine(OpenAIEngine):
             yield elem
 
     async def close(self):
-        self.server.close()
+        await self.server.close()

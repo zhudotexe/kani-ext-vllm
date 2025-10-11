@@ -91,8 +91,7 @@ class VLLMServerEngine(VLLMBase):
         prompt = self.build_prompt(messages, functions)
         kwargs = {
             "max_tokens": self.max_context_size,  # setting this to None causes a 500 for some reason
-            **self.hyperparams,
-            **hyperparams,
+            **(self.hyperparams | hyperparams),
         }
 
         # tokenize it ourselves in order to capture special tokens correctly
@@ -121,4 +120,4 @@ class VLLMServerEngine(VLLMBase):
         )
 
     async def close(self):
-        self.server.close()
+        await self.server.close()

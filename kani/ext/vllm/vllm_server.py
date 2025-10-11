@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import signal
 import socket
 import subprocess
 
@@ -49,22 +50,29 @@ class VLLMServer:
         log.info("Waiting until vLLM server is healthy...")
         i = 0
         while not self._server_healthy:
+            if self.process.poll() is not None:
+                raise RuntimeError("vLLM server died! Check the logs for the vLLM exception.")
             i += 1
             try:
                 log.debug(f"Checking for healthy server (request {i})...")
                 resp = await self.http.get(route)
                 resp.raise_for_status()
-            except httpx.HTTPError as e:
+                self._server_healthy = 200 <= resp.status_code < 300
+            except Exception as e:
                 log.debug(f"Unhealthy server (request {i}), waiting for 5 seconds...", exc_info=e)
                 if i % 10 == 0 and i > 1:
-                    log.warning(f"vLLM server is still unhealthy after {i} health checks!")
+                    log.warning(f"vLLM server is still unhealthy after {i} health checks!", exc_info=e)
                 await asyncio.sleep(5)
-                continue
-            else:
-                self._server_healthy = 200 <= resp.status_code < 300
 
-    def close(self):
-        self.process.terminate()
+    async def close(self):
+        # Ctrl-C behaviour
+        self.process.send_signal(signal.SIGINT)
+        try:
+            await asyncio.get_event_loop().run_in_executor(None, self.process.wait, 20)
+        except TimeoutError:
+            # if it doesn't shutdown in 20s, KILL it
+            log.warning("vLLM server did not shut down in 20s, KILLing it...")
+            self.process.kill()
 
 
 # ==== utils ====

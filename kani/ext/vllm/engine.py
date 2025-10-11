@@ -5,11 +5,11 @@ import warnings
 
 import torch
 import transformers
-from kani import AIFunction, ChatMessage, PromptPipeline, model_specific
 from kani.engines import Completion
 from vllm import AsyncEngineArgs, SamplingParams, TokensPrompt
 from vllm.v1.engine.async_llm import AsyncLLM
 
+from kani import AIFunction, ChatMessage, PromptPipeline, model_specific
 from .bases import VLLMBase
 
 log = logging.getLogger(__name__)
@@ -122,8 +122,7 @@ class VLLMEngine(VLLMBase):
         kwargs = {
             "sampling_params": SamplingParams(max_tokens=None),
             "request_id": request_id,
-            **self.hyperparams,
-            **hyperparams,
+            **(self.hyperparams | hyperparams),
         }
         eos_tok_ids = await self._get_eos_tokens(return_ids=True, sampling_params=kwargs["sampling_params"])
 
@@ -136,8 +135,11 @@ class VLLMEngine(VLLMBase):
         # generation from vllm api entrypoint
         final_output = None
         try:
-            async for request_output in self.model.generate(prompt_toks, **kwargs):
-                final_output = request_output
+            async for request_output in self.model.generate(prompt=prompt_toks, **kwargs):
+                log.debug(request_output)
+                if request_output.finished:
+                    final_output = request_output
+                    break
         except (asyncio.CancelledError, KeyboardInterrupt):
             # if something cancels our task, make sure we tell vLLM to stop generating too
             await self.model.abort(request_id)
