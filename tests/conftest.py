@@ -31,7 +31,7 @@ async def offline_engine():
     model = VLLMEngine(
         model_id=MODEL_ID,
         max_context_size=8192,
-        model_load_kwargs={"seed": SEED, "gpu_memory_utilization": 0.3},
+        model_load_kwargs={"seed": SEED, "gpu_memory_utilization": 0.25},
         sampling_params=SamplingParams(temperature=0, max_tokens=2048),
     )
     yield model
@@ -44,7 +44,7 @@ async def api_engine():
     model = VLLMServerEngine(
         model_id=MODEL_ID,
         max_context_size=8192,
-        vllm_args={"seed": SEED, "gpu_memory_utilization": 0.3},
+        vllm_args={"seed": SEED, "gpu_memory_utilization": 0.25},
         vllm_port=31415,
         timeout=3000,
         temperature=0,
@@ -60,7 +60,7 @@ async def openai_engine():
     model = VLLMOpenAIEngine(
         model_id=MODEL_ID,
         max_context_size=8192,
-        vllm_args={"seed": SEED, "gpu_memory_utilization": 0.3},
+        vllm_args={"seed": SEED, "gpu_memory_utilization": 0.25},
         vllm_port=31416,
         timeout=3000,
         temperature=0,
