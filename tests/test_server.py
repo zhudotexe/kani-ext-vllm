@@ -10,7 +10,7 @@ async def test_server_startup():
     await asyncio.wait_for(server.wait_for_healthy(), timeout=300)
     # and the model should be available
     resp = await server.http.get("/v1/models")
-    data = await resp.aread()
+    data = resp.json()
     print(data)
-    assert MODEL_ID in data
+    assert data["data"][0]["id"] == MODEL_ID
     await server.close()
