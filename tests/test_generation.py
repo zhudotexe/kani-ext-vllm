@@ -18,5 +18,5 @@ async def test_generation(engine, stream):
         resp = (await stream.message()).text
     else:
         resp = await ai.chat_round_str(prompt)
-        print(f"{engine.__name__}: {resp}")
+        print(f"{type(engine).__name__}: {resp}")
     assert resp

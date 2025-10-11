@@ -21,9 +21,9 @@ from tests.conftest import PROMPTS, infer_with_engine
 async def test_equivalence(e1, e2):
     prompt = random.choice(PROMPTS)
     resp1 = await infer_with_engine(e1, prompt)
-    print(f"{e1.__name__}: {resp1}")
+    print(f"{type(e1).__name__}: {resp1}")
     resp2 = await infer_with_engine(e2, prompt)
-    print(f"{e2.__name__}: {resp2}")
+    print(f"{type(e2).__name__}: {resp2}")
     assert resp1 == resp2
 
 
@@ -31,7 +31,7 @@ async def test_equivalence(e1, e2):
 async def test_equivalence_stream(engine):
     prompt = random.choice(PROMPTS)
     resp1 = await infer_with_engine(engine, prompt, stream=False)
-    print(f"{engine.__name__} (no stream): {resp1}")
+    print(f"{type(engine).__name__} (no stream): {resp1}")
     resp2 = await infer_with_engine(engine, prompt, stream=True)
-    print(f"{engine.__name__} (streaming): {resp2}")
+    print(f"{type(engine).__name__} (streaming): {resp2}")
     assert resp1 == resp2

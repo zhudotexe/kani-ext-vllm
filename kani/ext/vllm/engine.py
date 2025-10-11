@@ -136,7 +136,6 @@ class VLLMEngine(VLLMBase):
         final_output = None
         try:
             async for request_output in self.model.generate(prompt=prompt_toks, **kwargs):
-                log.debug(request_output)
                 if request_output.finished:
                     final_output = request_output
                     break
