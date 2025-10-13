@@ -3,10 +3,9 @@ import os
 import random
 
 import pytest
-from vllm import SamplingParams
-
 from kani import Kani
 from kani.ext.vllm import VLLMEngine, VLLMOpenAIEngine, VLLMServerEngine
+from vllm import SamplingParams
 
 if os.getenv("KANI_DEBUG"):
     logging.basicConfig(level=logging.DEBUG)

@@ -1,11 +1,10 @@
 import logging
 from typing import AsyncIterable
 
-from kani.engines.base import BaseCompletion
-from kani.engines.openai.translation import ChatCompletion
-
 from kani import AIFunction, ChatMessage
+from kani.engines.base import BaseCompletion
 from kani.engines.openai import OpenAIEngine
+from kani.engines.openai.translation import ChatCompletion
 from openai import AsyncOpenAI
 
 from .vllm_server import VLLMServer

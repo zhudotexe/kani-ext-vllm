@@ -5,11 +5,11 @@ import warnings
 
 import torch
 import transformers
+from kani import AIFunction, ChatMessage, PromptPipeline, model_specific
 from kani.engines import Completion
 from vllm import AsyncEngineArgs, SamplingParams, TokensPrompt
 from vllm.v1.engine.async_llm import AsyncLLM
 
-from kani import AIFunction, ChatMessage, PromptPipeline, model_specific
 from .bases import VLLMBase
 
 log = logging.getLogger(__name__)

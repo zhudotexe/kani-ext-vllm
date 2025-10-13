@@ -1,6 +1,7 @@
 import asyncio
 
 from kani.ext.vllm.vllm_server import VLLMServer
+
 from tests.conftest import MODEL_ID
 
 

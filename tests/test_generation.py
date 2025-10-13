@@ -1,9 +1,9 @@
 import random
 
 import pytest
+from kani import Kani, print_stream
 from pytest_lazy_fixtures import lf
 
-from kani import Kani, print_stream
 from tests.conftest import PROMPTS
 
 
