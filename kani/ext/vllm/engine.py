@@ -7,7 +7,9 @@ import torch
 import transformers
 from kani import AIFunction, ChatMessage, PromptPipeline, model_specific
 from kani.engines import Completion
-from vllm import AsyncEngineArgs, SamplingParams, TokensPrompt
+from vllm.engine.arg_utils import AsyncEngineArgs
+from vllm.inputs.data import TokensPrompt
+from vllm.sampling_params import SamplingParams
 from vllm.v1.engine.async_llm import AsyncLLM
 
 from .bases import VLLMBase
