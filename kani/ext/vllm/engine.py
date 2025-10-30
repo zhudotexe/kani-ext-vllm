@@ -46,7 +46,7 @@ class VLLMEngine(VLLMBase):
         engine_args = AsyncEngineArgs(model=model_id, max_model_len=max_context_size, **model_load_kwargs)
         engine = AsyncLLM.from_engine_args(engine_args)
 
-        tokenizer = engine.tokenizer.get_lora_tokenizer()
+        tokenizer = engine.tokenizer
         self.model = engine
         self.hyperparams = hyperparams
 
