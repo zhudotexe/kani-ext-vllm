@@ -20,3 +20,4 @@ else:
                 from .openai_compat_engine import VLLMOpenAIEngine
 
                 return VLLMOpenAIEngine
+        raise AttributeError(name=name)

@@ -5,6 +5,7 @@ on: [ push, pull_request ]
 env:
   HF_TOKEN: ${{ secrets.HF_TOKEN }}
   GH_TOKEN: ${{ github.token }}
+  UV_SYSTEM_PYTHON: 1
 
 jobs:
   build:
@@ -28,8 +29,6 @@ jobs:
 
       - name: Install dependencies
         run: uv pip install -Ur requirements.txt
-        env:
-          UV_SYSTEM_PYTHON: 1
 
       # build vllm
       - name: Find latest vLLM release
