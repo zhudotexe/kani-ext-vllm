@@ -49,8 +49,8 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y gcc-12 g++-12 libnuma-dev python3-dev
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 10 --slave /usr/bin/g++ g++ /usr/bin/g++-12
-          uv pip install -r requirements/cpu-build.txt --torch-backend cpu
-          uv pip install -r requirements/cpu.txt --torch-backend cpu
+          pip install -v -r requirements/cpu-build.txt --extra-index-url https://download.pytorch.org/whl/cpu
+          pip install -v -r requirements/cpu.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
       - name: Build vLLM CPU
         working-directory: _vllm
