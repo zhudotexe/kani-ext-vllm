@@ -27,6 +27,7 @@ class VLLMServer:
             port = str(port)
         self.port = port
         self.host = host
+        self.cli_args = kwargs_to_cli(vllm_args)
         _vargs = [
             "vllm",
             "serve",
@@ -35,7 +36,7 @@ class VLLMServer:
             host,
             "--port",
             port,
-            *kwargs_to_cli(vllm_args),
+            *self.cli_args,
         ]
         log.info(f"Launching vLLM server with following command: {_vargs}")
         self.process = subprocess.Popen(_vargs)
@@ -60,8 +61,8 @@ class VLLMServer:
                 self._server_healthy = 200 <= resp.status_code < 300
             except Exception as e:
                 log.debug(f"Unhealthy server (request {i}), waiting for 5 seconds...", exc_info=e)
-                if i % 10 == 0 and i > 1:
-                    log.warning(f"vLLM server is still unhealthy after {i} health checks!", exc_info=e)
+                if i % 12 == 0 and i > 1:
+                    log.warning(f"vLLM server is still unhealthy after {i} health checks: {e}")
                 await asyncio.sleep(5)
 
     async def close(self):
@@ -73,6 +74,11 @@ class VLLMServer:
             # if it doesn't shutdown in 20s, KILL it
             log.warning("vLLM server did not shut down in 20s, KILLing it...")
             self.process.kill()
+
+    def __del__(self):
+        """If we weren't cleaned up properly, SIGINT the server process"""
+        if self.process.poll() is None:
+            self.process.send_signal(signal.SIGINT)
 
 
 # ==== utils ====

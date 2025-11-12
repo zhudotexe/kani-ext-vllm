@@ -1,10 +1,11 @@
 import logging
 from typing import AsyncIterable
 
-from kani import AIFunction, ChatMessage
+from kani import AIFunction, ChatMessage, ReasoningPart
 from kani.engines.base import BaseCompletion
 from kani.engines.openai import OpenAIEngine
 from kani.engines.openai.translation import ChatCompletion
+from kani.utils.warnings import warn_in_userspace
 from openai import AsyncOpenAI
 
 from .vllm_server import VLLMServer
@@ -74,14 +75,25 @@ class VLLMOpenAIEngine(OpenAIEngine):
         self, messages: list[ChatMessage], functions: list[AIFunction] | None = None, **hyperparams
     ) -> ChatCompletion:
         await self.server.wait_for_healthy()
-        return await super().predict(messages, functions, **hyperparams)
+        completion = await super().predict(messages, functions, **hyperparams)
+        # parse for vllm's reasoning_content
+        if reasoning := getattr(completion.openai_completion.choices[0].message, "reasoning_content", None):
+            completion.message.content = [ReasoningPart(content=reasoning), *completion.message.parts]
+        return completion
 
     async def stream(
         self, messages: list[ChatMessage], functions: list[AIFunction] | None = None, **hyperparams
     ) -> AsyncIterable[str | BaseCompletion]:
-        await self.server.wait_for_healthy()
-        async for elem in super().stream(messages, functions, **hyperparams):
-            yield elem
+        # don't stream if we set --reasoning-parser -- the OpenAIEngine doesn't support reasoning streaming
+        if "--reasoning_parser" in self.server.cli_args:
+            warn_in_userspace("Streaming mode is not supported when --reasoning-parser is set.")
+            completion = await self.predict(messages, functions, **hyperparams)
+            yield completion.message.text
+            yield completion
+        else:
+            await self.server.wait_for_healthy()
+            async for elem in super().stream(messages, functions, **hyperparams):
+                yield elem
 
     async def close(self):
         await self.server.close()
