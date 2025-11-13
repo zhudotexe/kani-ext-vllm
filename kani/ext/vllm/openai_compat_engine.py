@@ -1,13 +1,14 @@
 import logging
 from typing import AsyncIterable
 
-from kani import AIFunction, ChatMessage, ReasoningPart
 from kani.engines.base import BaseCompletion
 from kani.engines.openai import OpenAIEngine
 from kani.engines.openai.translation import ChatCompletion
 from kani.utils.warnings import warn_in_userspace
 from openai import AsyncOpenAI
 
+from kani import AIFunction, ChatMessage, ReasoningPart
+from .utils import max_context_size_from_autoconfig
 from .vllm_server import VLLMServer
 
 log = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ class VLLMOpenAIEngine(OpenAIEngine):
     def __init__(
         self,
         model_id: str,
-        max_context_size: int,
+        max_context_size: int | None = None,
         *,
         timeout: int = 600,
         vllm_args: dict = None,
@@ -34,7 +35,8 @@ class VLLMOpenAIEngine(OpenAIEngine):
     ):
         r"""
         :param model_id: The ID of the model to load from HuggingFace.
-        :param max_context_size: The context size of the model.
+        :param max_context_size: The context size of the model. Defaults to the context size specified in the model
+            config.
         :param vllm_args: See https://docs.vllm.ai/en/stable/cli/serve.html.
             Underscores will be converted to hyphens, dashes will be added, and values of True will be present.
             (e.g. ``{"enable_auto_tool_choice": True, "tool_call_parser": "mistral"}`` becomes
@@ -52,6 +54,11 @@ class VLLMOpenAIEngine(OpenAIEngine):
             api_key="<the library wants this but it isn't needed>",
             timeout=timeout,
         )
+
+        # get max context size if not set
+        if max_context_size is None:
+            max_context_size = max_context_size_from_autoconfig(model_id)
+
         super().__init__(model=model_id, max_context_size=max_context_size, client=openai_client, **hyperparams)
 
     # OpenAIEngine patches

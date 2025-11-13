@@ -9,6 +9,7 @@ from openai import AsyncOpenAI
 from transformers import AutoTokenizer
 
 from .bases import VLLMBase
+from .utils import max_context_size_from_autoconfig
 from .vllm_server import VLLMServer
 
 log = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ class VLLMServerEngine(VLLMBase):
     def __init__(
         self,
         model_id: str,
-        max_context_size: int,
+        max_context_size: int | None = None,
         prompt_pipeline: PromptPipeline[str | torch.Tensor] = None,
         *,
         timeout: int = 600,
@@ -40,7 +41,8 @@ class VLLMServerEngine(VLLMBase):
     ):
         r"""
         :param model_id: The ID of the model to load from HuggingFace.
-        :param max_context_size: The context size of the model.
+        :param max_context_size: The context size of the model. Defaults to the context size specified in the model
+            config.
         :param prompt_pipeline: A kani PromptPipeline to use.
         :param vllm_args: See https://docs.vllm.ai/en/stable/cli/serve.html.
             Underscores will be converted to hyphens, dashes will be added, and values of True will be present.
@@ -73,6 +75,10 @@ class VLLMServerEngine(VLLMBase):
             prompt_pipeline = model_specific.prompt_pipeline_for_hf_model(
                 model_id, tokenizer, chat_template_kwargs=chat_template_kwargs
             )
+
+        # get max context size if not set
+        if max_context_size is None:
+            max_context_size = max_context_size_from_autoconfig(model_id)
         super().__init__(tokenizer=tokenizer, max_context_size=max_context_size, prompt_pipeline=prompt_pipeline)
 
     # ===== main =====
