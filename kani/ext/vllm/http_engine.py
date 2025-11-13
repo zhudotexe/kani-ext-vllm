@@ -1,13 +1,13 @@
 import logging
 
 import torch
-from kani import PromptPipeline, model_specific
 from kani.ai_function import AIFunction
 from kani.engines import Completion
 from kani.models import ChatMessage
 from openai import AsyncOpenAI
 from transformers import AutoTokenizer
 
+from kani import PromptPipeline, model_specific
 from .bases import VLLMBase
 from .utils import max_context_size_from_autoconfig
 from .vllm_server import VLLMServer
@@ -95,11 +95,6 @@ class VLLMServerEngine(VLLMBase):
         decode_kwargs.setdefault("skip_special_tokens", False)
 
         prompt = self.build_prompt(messages, functions)
-        kwargs = {
-            "max_tokens": self.max_context_size,  # setting this to None causes a 500 for some reason
-            **(self.hyperparams | hyperparams),
-        }
-
         # tokenize it ourselves in order to capture special tokens correctly
         if isinstance(prompt, list):
             prompt_toks = prompt
@@ -107,6 +102,11 @@ class VLLMServerEngine(VLLMBase):
             prompt_toks = prompt[0].tolist()
         else:
             prompt_toks = self.tokenizer.encode(prompt, add_special_tokens=False)
+
+        kwargs = {
+            "max_tokens": self.max_context_size - len(prompt_toks),  # setting this to None causes a 500 for some reason
+            **(self.hyperparams | hyperparams),
+        }
 
         # run it through the model
         await self.server.wait_for_healthy()
