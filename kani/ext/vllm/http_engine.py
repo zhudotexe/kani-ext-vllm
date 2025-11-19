@@ -36,6 +36,7 @@ class VLLMServerEngine(VLLMBase):
         vllm_args: dict = None,
         vllm_host: str = "127.0.0.1",
         vllm_port: int = None,
+        use_managed_server=True,
         chat_template_kwargs: dict = None,
         **hyperparams,
     ):
@@ -50,6 +51,8 @@ class VLLMServerEngine(VLLMBase):
             ``--enable-auto-tool-choice --tool-call-parser mistral``\ .)
         :param vllm_host: The host to bind the vLLM server to. Defaults to localhost.
         :param vllm_port: The port to bind the vLLM server to. Defaults to a random free port.
+        :param use_managed_server: Whether to start and manage the vLLM server process (default). If False, connects
+            to an already-started vLLM server at the given host and port.
         :param chat_template_kwargs: The keyword arguments to pass to ``tokenizer.apply_chat_template`` if using a chat
             template prompt pipeline.
         :param hyperparams: Additional arguments to supply the model during generation, see
@@ -62,6 +65,8 @@ class VLLMServerEngine(VLLMBase):
         self.hyperparams = hyperparams
 
         self.server = VLLMServer(model_id=model_id, vllm_args=vllm_args, host=vllm_host, port=vllm_port)
+        if use_managed_server:
+            self.server.start()
         self.client = AsyncOpenAI(
             base_url=f"http://127.0.0.1:{self.server.port}/v1",
             api_key="<the library wants this but it isn't needed>",

@@ -50,36 +50,68 @@ chat_in_terminal(ai)
 > [!NOTE]
 > Using offline mode is preferred unless you need to load multiple models in parallel.
 
-> [!NOTE]
-> The vLLM server will be started on a random free port. It will not be exposed to the wider internet (i.e, it binds to
-> localhost).
+The API mode can be used to connect to an existing running vLLM server or to start a managed vLLM server.
 
-When loading a model in API mode, the model's context length can not be read from the configuration, so you must pass
-the `max_context_size`.
+**Connecting to a Running Server**
 
 ```python
 from kani import Kani, chat_in_terminal
 from kani.ext.vllm import VLLMServerEngine
 
-engine = VLLMServerEngine(model_id="meta-llama/Meta-Llama-3-8B-Instruct", max_context_size=128000)
+engine = VLLMServerEngine(
+    model_id="meta-llama/Meta-Llama-3-8B-Instruct",
+    vllm_host="127.0.0.1",
+    vllm_port=8000,
+    use_managed_server=False,
+)
+ai = Kani(engine)
+chat_in_terminal(ai)
+```
+
+**Managed Server**
+
+> [!NOTE]
+> The vLLM server will be started on a random free port. It will not be exposed to the wider internet (i.e, it binds to
+> localhost).
+
+```python
+from kani import Kani, chat_in_terminal
+from kani.ext.vllm import VLLMServerEngine
+
+engine = VLLMServerEngine(model_id="meta-llama/Meta-Llama-3-8B-Instruct")
 ai = Kani(engine)
 chat_in_terminal(ai)
 ```
 
 ### OpenAI-Compatible API Mode
 
-> [!NOTE]
-> The vLLM server will be started on a random free port. It will not be exposed to the wider internet (i.e, it binds to
-> localhost).
-
-When loading a model in API mode, the model's context length can not be read from the configuration, so you must pass
-the `max_context_size`.
+**Connecting to a Running Server**
 
 ```python
 from kani import Kani, chat_in_terminal
 from kani.ext.vllm import VLLMOpenAIEngine
 
-engine = VLLMOpenAIEngine(model_id="meta-llama/Meta-Llama-3-8B-Instruct", max_context_size=128000)
+engine = VLLMOpenAIEngine(
+    model_id="meta-llama/Meta-Llama-3-8B-Instruct",
+    vllm_host="127.0.0.1",
+    vllm_port=8000,
+    use_managed_server=False,
+)
+ai = Kani(engine)
+chat_in_terminal(ai)
+```
+
+**Managed Server**
+
+> [!NOTE]
+> The vLLM server will be started on a random free port. It will not be exposed to the wider internet (i.e, it binds to
+> localhost).
+
+```python
+from kani import Kani, chat_in_terminal
+from kani.ext.vllm import VLLMOpenAIEngine
+
+engine = VLLMOpenAIEngine(model_id="meta-llama/Meta-Llama-3-8B-Instruct")
 ai = Kani(engine)
 chat_in_terminal(ai)
 ```
@@ -114,7 +146,6 @@ from kani.ext.vllm import VLLMServerEngine
 
 model = VLLMServerEngine(
     model_id="mistralai/Mistral-Small-Instruct-2409",
-    max_context_size=32000,
     vllm_args={"tensor_parallel_size": 2, "tokenizer_mode": "auto"},
     # note that these should not be wrapped in SamplingParams!
     temperature=0,
@@ -132,7 +163,6 @@ from kani.ext.vllm import VLLMOpenAIEngine
 
 model = VLLMOpenAIEngine(
     model_id="Qwen/Qwen3-Omni-30B-A3B-Instruct",
-    max_context_size=32768,
     vllm_args={"tensor_parallel_size": 2, "allowed_local_media_path": "/"},
     # note that these should not be wrapped in SamplingParams!
     temperature=0,

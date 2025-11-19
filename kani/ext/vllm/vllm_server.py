@@ -28,7 +28,7 @@ class VLLMServer:
         self.port = port
         self.host = host
         self.cli_args = kwargs_to_cli(vllm_args)
-        _vargs = [
+        self._vargs = [
             "vllm",
             "serve",
             model_id,
@@ -38,10 +38,13 @@ class VLLMServer:
             port,
             *self.cli_args,
         ]
-        log.info(f"Launching vLLM server with following command: {_vargs}")
-        self.process = subprocess.Popen(_vargs)
+        self.process = None
         self.http = httpx.AsyncClient(base_url=f"http://127.0.0.1:{port}")
         self._server_healthy = False
+
+    def start(self):
+        log.info(f"Launching vLLM server with following command: {self._vargs}")
+        self.process = subprocess.Popen(self._vargs)
 
     async def wait_for_healthy(self, route="/health"):
         """Wait until a GET request to the given route returns a 2XX response code."""
@@ -51,7 +54,7 @@ class VLLMServer:
         log.info("Waiting until vLLM server is healthy...")
         i = 0
         while not self._server_healthy:
-            if self.process.poll() is not None:
+            if self.process is not None and self.process.poll() is not None:
                 raise RuntimeError("vLLM server died! Check the logs for the vLLM exception.")
             i += 1
             try:
@@ -66,6 +69,8 @@ class VLLMServer:
                 await asyncio.sleep(5)
 
     async def close(self):
+        if self.process is None:
+            return
         # Ctrl-C behaviour
         self.process.send_signal(signal.SIGINT)
         try:
@@ -77,7 +82,7 @@ class VLLMServer:
 
     def __del__(self):
         """If we weren't cleaned up properly, SIGINT the server process"""
-        if self.process.poll() is None:
+        if self.process is not None and self.process.poll() is None:
             self.process.send_signal(signal.SIGINT)
 
 
