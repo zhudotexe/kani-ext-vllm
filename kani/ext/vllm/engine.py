@@ -88,7 +88,7 @@ class VLLMEngine(VLLMBase):
         if sampling_params.stop_token_ids:
             genconfig_eos_token_id = sampling_params.stop_token_ids
         else:
-            model_config = await self.model.get_model_config()
+            model_config = self.model.model_config
             gen_config = model_config.try_get_generation_config()
             genconfig_eos_token_id = gen_config.get("eos_token_id")
 

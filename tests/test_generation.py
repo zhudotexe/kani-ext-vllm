@@ -26,7 +26,7 @@ async def _query_engine(engine, stream):
     ai = Kani(engine)
     if stream:
         stream = ai.chat_round_stream(prompt)
-        await print_stream(stream, prefix=f"{type(engine).__name__} (streaming)")
+        await print_stream(stream, prefix=f"{type(engine).__name__} (streaming): ")
         resp = (await stream.message()).text
     else:
         resp = await ai.chat_round_str(prompt)
