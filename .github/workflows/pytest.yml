@@ -43,10 +43,21 @@ jobs:
           path: _vllm
           ref: ${{ steps.vllm_release.outputs.tag }}
 
-      - name: Install vLLM CPU
+      - name: Download vLLM CPU deps
         working-directory: _vllm
         run: |
-          VLLM_USE_PRECOMPILED=1 VLLM_PRECOMPILED_WHEEL_VARIANT=cpu VLLM_TARGET_DEVICE=cpu uv pip install --editable .
+          sudo apt-get update -y
+          sudo apt-get install -y gcc-12 g++-12 libnuma-dev python3-dev
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 10 --slave /usr/bin/g++ g++ /usr/bin/g++-12
+          uv pip install -r requirements/cpu-build.txt --torch-backend cpu
+          uv pip install -r requirements/cpu.txt --torch-backend cpu
+
+      - name: Build vLLM CPU
+        working-directory: _vllm
+        env:
+          CMAKE_DISABLE_FIND_PACKAGE_CUDA: ON
+        run: |
+          VLLM_TARGET_DEVICE=cpu uv pip install . --no-build-isolation
 
       # download models
       - name: Cache HF models
