@@ -43,20 +43,10 @@ jobs:
           path: _vllm
           ref: ${{ steps.vllm_release.outputs.tag }}
 
-      - name: Download vLLM CPU deps
+      - name: Install vLLM CPU
         working-directory: _vllm
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y gcc-12 g++-12 libnuma-dev python3-dev
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 10 --slave /usr/bin/g++ g++ /usr/bin/g++-12
-          pip install -v -r requirements/cpu-build.txt --extra-index-url https://download.pytorch.org/whl/cpu
-          pip install -v -r requirements/cpu.txt --extra-index-url https://download.pytorch.org/whl/cpu
-
-      - name: Build vLLM CPU
-        working-directory: _vllm
-        run: |
-          VLLM_TARGET_DEVICE=cpu uv pip install . --no-build-isolation
-          uv pip install --force-reinstall torchvision  # seems to be a build issue in vllm 0.11?
+          VLLM_USE_PRECOMPILED=1 VLLM_PRECOMPILED_WHEEL_VARIANT=cpu VLLM_TARGET_DEVICE=cpu uv pip install --editable .
 
       # download models
       - name: Cache HF models

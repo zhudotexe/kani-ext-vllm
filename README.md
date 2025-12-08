@@ -1,8 +1,10 @@
 # kani-ext-vllm
 
-This repository adds the VLLMEngine.
+This Kani extension repository adds 3 engines for using vLLM to deploy LLMs on local hardware.
 
-This package is considered provisional and maintained on a best-effort basis.
+vLLM is an LLM deployment platform optimized for GPU memory efficiency and throughput. This extension adds Kani engines
+to use vLLM engines in offline mode, manage a vLLM server, or connect to an existing vLLM server depending on the 
+use case.
 
 To install this package, you can install it from PyPI:
 
@@ -46,9 +48,6 @@ chat_in_terminal(ai)
 ```
 
 ### vLLM-Native API Mode
-
-> [!NOTE]
-> Using offline mode is preferred unless you need to load multiple models in parallel.
 
 The API mode can be used to connect to an existing running vLLM server or to start a managed vLLM server.
 
@@ -156,6 +155,8 @@ model = VLLMServerEngine(
 See https://docs.vllm.ai/en/stable/serving/openai_compatible_server.html#completions-api_1 for a list of valid decoding
 parameters that can be specified in the engine constructor.
 
+See https://docs.vllm.ai/en/stable/cli/serve/ for a list of valid arguments to `vllm_args`.
+
 ### OpenAI-Compatible API Mode
 
 ```python
@@ -172,3 +173,5 @@ model = VLLMOpenAIEngine(
 
 See https://docs.vllm.ai/en/stable/serving/openai_compatible_server.html#chat-api_1 for a list of valid decoding
 parameters that can be specified in the engine constructor.
+
+See https://docs.vllm.ai/en/stable/cli/serve/ for a list of valid arguments to `vllm_args`.

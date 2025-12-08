@@ -1,13 +1,13 @@
 import logging
 
 import torch
+from kani import PromptPipeline, model_specific
 from kani.ai_function import AIFunction
 from kani.engines import Completion
 from kani.models import ChatMessage
 from openai import AsyncOpenAI
 from transformers import AutoTokenizer
 
-from kani import PromptPipeline, model_specific
 from .bases import VLLMBase
 from .utils import max_context_size_from_autoconfig
 from .vllm_server import VLLMServer
