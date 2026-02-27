@@ -71,8 +71,8 @@ class VLLMOpenAIEngine(OpenAIEngine):
     def _load_tokenizer(self):
         return None
 
-    @staticmethod
-    def translate_kani_message_to_openai(message: ChatMessage) -> ChatCompletionMessageParam:
+    @classmethod  # has to be a classmethod for super to work
+    def translate_kani_message_to_openai(cls, message: ChatMessage) -> ChatCompletionMessageParam:
         oai_msg = super().translate_kani_message_to_openai(message)
         # if we have a reasoning part, set it as msg["reasoning"]
         # see https://github.com/vllm-project/vllm/blob/c29ee9c32647cc6cc3c51a6bc070267d48b0bcc4/vllm/entrypoints/chat_utils.py#L1453
