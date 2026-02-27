@@ -25,6 +25,7 @@ class VLLMEngine(VLLMBase):
         prompt_pipeline: PromptPipeline[str | torch.Tensor] = None,
         *,
         model_load_kwargs: dict = None,
+        chat_template_reasoning_content_key: str = None,
         chat_template_kwargs: dict = None,
         **hyperparams,
     ):
@@ -34,6 +35,8 @@ class VLLMEngine(VLLMBase):
         :param prompt_pipeline: The pipeline to translate a list of kani ChatMessages into the model-specific chat
             format (see :class:`.PromptPipeline`).
         :param model_load_kwargs: Additional arguments to pass to ``AsyncEngineArgs()``.
+        :param chat_template_reasoning_content_key: The key of each message dict that any reasoning content should be
+            set at.
         :param chat_template_kwargs: The keyword arguments to pass to ``tokenizer.apply_chat_template`` if using a chat
             template prompt pipeline.
         :param hyperparams: Additional arguments to supply the model during generation.
@@ -55,7 +58,10 @@ class VLLMEngine(VLLMBase):
             if isinstance(tokenizer, transformers.PreTrainedTokenizerBase):
                 # try and load a manual impl, or default to chat template if not available
                 prompt_pipeline = model_specific.prompt_pipeline_for_hf_model(
-                    model_id, tokenizer, chat_template_kwargs=chat_template_kwargs
+                    model_id,
+                    tokenizer,
+                    chat_template_reasoning_content_key=chat_template_reasoning_content_key,
+                    chat_template_kwargs=chat_template_kwargs,
                 )
             else:
                 raise ValueError(

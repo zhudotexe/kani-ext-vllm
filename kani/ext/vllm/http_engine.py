@@ -37,6 +37,7 @@ class VLLMServerEngine(VLLMBase):
         vllm_host: str = "127.0.0.1",
         vllm_port: int = None,
         use_managed_server=True,
+        chat_template_reasoning_content_key: str = None,
         chat_template_kwargs: dict = None,
         **hyperparams,
     ):
@@ -53,6 +54,8 @@ class VLLMServerEngine(VLLMBase):
         :param vllm_port: The port to bind the vLLM server to. Defaults to a random free port.
         :param use_managed_server: Whether to start and manage the vLLM server process (default). If False, connects
             to an already-started vLLM server at the given host and port.
+        :param chat_template_reasoning_content_key: The key of each message dict that any reasoning content should be
+            set at.
         :param chat_template_kwargs: The keyword arguments to pass to ``tokenizer.apply_chat_template`` if using a chat
             template prompt pipeline.
         :param hyperparams: Additional arguments to supply the model during generation, see
@@ -78,7 +81,10 @@ class VLLMServerEngine(VLLMBase):
         if prompt_pipeline is None:
             # try and load a manual impl, or default to chat template if not available
             prompt_pipeline = model_specific.prompt_pipeline_for_hf_model(
-                model_id, tokenizer, chat_template_kwargs=chat_template_kwargs
+                model_id,
+                tokenizer,
+                chat_template_reasoning_content_key=chat_template_reasoning_content_key,
+                chat_template_kwargs=chat_template_kwargs,
             )
 
         # get max context size if not set

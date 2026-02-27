@@ -1,13 +1,14 @@
 import logging
 from typing import AsyncIterable
 
-from kani import AIFunction, ChatMessage, ReasoningPart
 from kani.engines.base import BaseCompletion
 from kani.engines.openai import OpenAIEngine
 from kani.engines.openai.translation import ChatCompletion
 from kani.utils.warnings import warn_in_userspace
 from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessageParam
 
+from kani import AIFunction, ChatMessage, ReasoningPart
 from .utils import max_context_size_from_autoconfig
 from .vllm_server import VLLMServer
 
@@ -69,6 +70,17 @@ class VLLMOpenAIEngine(OpenAIEngine):
     # OpenAIEngine patches
     def _load_tokenizer(self):
         return None
+
+    @staticmethod
+    def translate_kani_message_to_openai(message: ChatMessage) -> ChatCompletionMessageParam:
+        oai_msg = super().translate_kani_message_to_openai(message)
+        # if we have a reasoning part, set it as msg["reasoning"]
+        # see https://github.com/vllm-project/vllm/blob/c29ee9c32647cc6cc3c51a6bc070267d48b0bcc4/vllm/entrypoints/chat_utils.py#L1453
+        reasoning_parts = [p for p in message.parts if isinstance(p, ReasoningPart)]
+        if reasoning_parts:
+            reasoning = "\n".join(p.content for p in reasoning_parts)
+            oai_msg["reasoning"] = reasoning
+        return oai_msg
 
     # ===== main =====
     async def prompt_len(self, messages, functions=None, **kwargs) -> int:
