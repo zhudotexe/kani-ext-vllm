@@ -27,38 +27,13 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Install vLLM CPU
+        run: |
+          export VLLM_VERSION=$(curl -s https://api.github.com/repos/vllm-project/vllm/releases/latest | jq -r .tag_name | sed 's/^v//')
+          uv pip install https://github.com/vllm-project/vllm/releases/download/v${VLLM_VERSION}/vllm-${VLLM_VERSION}+cpu-cp38-abi3-manylinux_2_35_x86_64.whl --torch-backend cpu
+
       - name: Install dependencies
         run: uv pip install -Ur requirements.txt
-
-      # build vllm
-      - name: Find latest vLLM release
-        id: vllm_release
-        run: |
-          echo "tag=$(gh release list --repo vllm-project/vllm --json name,isLatest,tagName --jq '.[] | select(.isLatest) | .tagName')" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout vLLM
-        uses: actions/checkout@v4
-        with:
-          repository: vllm-project/vllm
-          path: _vllm
-          ref: ${{ steps.vllm_release.outputs.tag }}
-
-      - name: Download vLLM CPU deps
-        working-directory: _vllm
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y gcc-12 g++-12 libnuma-dev python3-dev
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 10 --slave /usr/bin/g++ g++ /usr/bin/g++-12
-          uv pip install -U pip
-          pip install -v -r requirements/cpu-build.txt --extra-index-url https://download.pytorch.org/whl/cpu
-          pip install -v -r requirements/cpu.txt --extra-index-url https://download.pytorch.org/whl/cpu
-
-      - name: Build vLLM CPU
-        working-directory: _vllm
-        env:
-          CMAKE_DISABLE_FIND_PACKAGE_CUDA: ON
-        run: |
-          VLLM_TARGET_DEVICE=cpu uv pip install . --no-build-isolation
 
       # download models
       - name: Cache HF models
