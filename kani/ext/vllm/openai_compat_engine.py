@@ -1,6 +1,7 @@
 import logging
 from typing import AsyncIterable
 
+from kani import AIFunction, ChatMessage, ReasoningPart
 from kani.engines.base import BaseCompletion
 from kani.engines.openai import OpenAIEngine
 from kani.engines.openai.translation import ChatCompletion
@@ -8,7 +9,6 @@ from kani.utils.warnings import warn_in_userspace
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
-from kani import AIFunction, ChatMessage, ReasoningPart
 from .utils import max_context_size_from_autoconfig
 from .vllm_server import VLLMServer
 
